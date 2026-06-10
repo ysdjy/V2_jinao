@@ -33,9 +33,10 @@ KNIFE_HANDLE_CONFIG_SIZE = stack_joint_pos_env_cfg.KNIFE_HANDLE_PROXY_SIZE
 KNIFE_HANDLE_SIZE = tuple(value * KNIFE_ASSET_SCALE for value in KNIFE_HANDLE_CONFIG_SIZE)
 KNIFE_PRE_GRASP_HEIGHT = 0.100
 KNIFE_GRASP_Z_OFFSET = 0.020
+KNIFE_EXTRA_DESCENT = 0.5 * KNIFE_HANDLE_SIZE[2]
 KNIFE_PROBE_LIFT_HEIGHT = 0.030
 KNIFE_FULL_LIFT_HEIGHT = 0.120
-KNIFE_GRIP_YAW_OFFSET = math.pi / 2.0
+KNIFE_GRIP_YAW_OFFSET = math.pi
 
 WORKSPACE_X_MIN = 0.25
 WORKSPACE_X_MAX = 0.85
@@ -191,11 +192,10 @@ class TargetRegistry:
         )
         handle_pos = handle_pos[0]
         handle_quat = math_utils.normalize(handle_quat)[0]
-        knife_quat_w = math_utils.normalize(link_pose.quat_w.unsqueeze(0))[0]
-        knife_yaw = self._yaw_from_local_x(knife_quat_w)
-        knife_grasp_yaw = knife_yaw + math.pi / 2.0
+        knife_yaw = self._yaw_from_local_x(handle_quat)
+        knife_grasp_yaw = knife_yaw + KNIFE_GRIP_YAW_OFFSET
         grasp_quat = self._top_down_quat(knife_grasp_yaw)
-        grasp_pos = handle_pos + self._vec3(0.0, 0.0, KNIFE_GRASP_Z_OFFSET)
+        grasp_pos = handle_pos + self._vec3(0.0, 0.0, KNIFE_GRASP_Z_OFFSET - KNIFE_EXTRA_DESCENT)
         pre_grasp_pos = grasp_pos + self._vec3(0.0, 0.0, cfg.pre_grasp_clearance)
         probe_lift_pos = grasp_pos + self._vec3(0.0, 0.0, cfg.probe_lift_height)
         full_lift_pos = grasp_pos + self._vec3(0.0, 0.0, cfg.full_lift_height)
@@ -213,7 +213,7 @@ class TargetRegistry:
             pre_grasp_pose,
             probe_lift_pos,
             full_lift_pos,
-            object_quat_w=knife_quat_w,
+            object_quat_w=handle_quat,
             object_yaw=knife_yaw,
             grasp_yaw=knife_grasp_yaw,
         )
