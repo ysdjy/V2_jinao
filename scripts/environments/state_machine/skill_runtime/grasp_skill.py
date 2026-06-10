@@ -67,6 +67,7 @@ class _Runtime:
     final_error_pos: float | None = None
     final_error_ori: float | None = None
     last_failure_message: str | None = None
+    logged_plan_debug: bool = False
     history: list[dict] = field(default_factory=list)
 
 
@@ -120,14 +121,14 @@ class GraspSkill:
                 self._transition(state, GraspState.MOVE_TO_PRE_GRASP)
 
         if self.runtime.state == GraspState.MOVE_TO_PRE_GRASP:
-            desired = PoseState(plan.pre_grasp_pose.pos_w, state.robot.tcp_pose.quat_w)
-            command_pose = self._bounded_command(state, desired)
+            desired = plan.pre_grasp_pose
+            command_pose = self._bounded_command(state, desired, 0.012, math.radians(4.0))
             self._advance_when_reached(
                 state,
                 desired,
-                GraspState.ALIGN_GRASP,
-                self.cfg.move_position_threshold,
-                math.pi,
+                GraspState.DESCEND_TO_GRASP,
+                0.012,
+                math.radians(6.0),
                 self.cfg.move_stable_cycles,
                 self.cfg.state_timeout,
             )
@@ -301,6 +302,9 @@ class GraspSkill:
                 plan.message = f"target jump exceeded limit: {float(jump):.3f} m"
                 return plan
         self.runtime.filtered_plan = plan
+        if not self.runtime.logged_plan_debug:
+            self._log_initial_plan_debug(state, plan)
+            self.runtime.logged_plan_debug = True
         return plan
 
     def _bounded_command(
@@ -443,6 +447,8 @@ class GraspSkill:
         self.runtime.state_start_time = state.sim_time
         self.runtime.stable_count = 0
         self.runtime.state_cycles = 0
+        if new_state == GraspState.DESCEND_TO_GRASP:
+            self._log_pre_grasp_error(state)
         self._record_transition(state, old_state, new_state)
 
     def _record_transition(self, state: SceneState, old_state: GraspState, new_state: GraspState):
@@ -497,6 +503,40 @@ class GraspSkill:
                 plan.full_lift_pose,
             )
         )
+
+    def _log_initial_plan_debug(self, state: SceneState, plan: GraspPlan) -> None:
+        orientation_error = pose_error(state.robot.tcp_pose, plan.grasp_pose).orientation
+        object_quat = plan.target_pose.quat_w if plan.object_quat_w is None else plan.object_quat_w
+        record = {
+            "target_name": plan.target_name,
+            "object_quat_wxyz": self._quat_list(object_quat),
+            "object_yaw_deg": None if plan.object_yaw is None else round(math.degrees(plan.object_yaw), 3),
+            "planned_grasp_quat_wxyz": self._quat_list(plan.grasp_pose.quat_w),
+            "current_tcp_quat_wxyz": self._quat_list(state.robot.tcp_pose.quat_w),
+            "initial_orientation_error_deg": round(math.degrees(orientation_error), 3),
+        }
+        print(f"[GraspPlanDebug] {record}", flush=True)
+        if plan.target_name == "knife" and plan.object_yaw is not None and plan.grasp_yaw is not None:
+            knife_record = {
+                "knife_object_yaw_deg": round(math.degrees(plan.object_yaw), 3),
+                "knife_grasp_yaw_deg": round(math.degrees(plan.grasp_yaw), 3),
+                "yaw_difference_deg": round(math.degrees(plan.grasp_yaw - plan.object_yaw), 3),
+            }
+            print(f"[GraspPlanDebug] {knife_record}", flush=True)
+
+    def _log_pre_grasp_error(self, state: SceneState) -> None:
+        plan = self.runtime.filtered_plan
+        if plan is None:
+            return
+        error = pose_error(state.robot.tcp_pose, plan.pre_grasp_pose)
+        record = {
+            "pre_grasp_position_error": round(error.position, 5),
+            "pre_grasp_orientation_error_deg": round(math.degrees(error.orientation), 3),
+        }
+        print(f"[GraspPlanDebug] {record}", flush=True)
+
+    def _quat_list(self, quat: torch.Tensor) -> list[float]:
+        return [round(float(x), 5) for x in quat.detach().cpu().tolist()]
 
     def _log_descend_progress(self, state: SceneState, desired: PoseState) -> None:
         if self.runtime.state_cycles % 10 != 0:

@@ -78,6 +78,9 @@ class GraspPlan:
     valid: bool = True
     failure_reason: FailureReason = FailureReason.NONE
     message: str = ""
+    object_quat_w: torch.Tensor | None = None
+    object_yaw: float | None = None
+    grasp_yaw: float | None = None
 
 
 class TargetRegistry:
@@ -152,9 +155,8 @@ class TargetRegistry:
         obj = state.objects[cfg.scene_key]
         cube_center_w = obj.pose.pos_w
         cube_quat_w = math_utils.normalize(obj.pose.quat_w.unsqueeze(0))[0]
-        _, _, yaw = math_utils.euler_xyz_from_quat(cube_quat_w.unsqueeze(0))
-        aligned_yaw = torch.round(yaw / (math.pi / 2.0)) * (math.pi / 2.0)
-        grasp_quat = self._top_down_quat(aligned_yaw[0])
+        cube_yaw = self._yaw_from_local_x(cube_quat_w)
+        grasp_quat = self._top_down_quat(cube_yaw)
         grasp_pos = cube_center_w + self._vec3(0.0, 0.0, cfg.local_grasp_pos[2])
         pre_grasp_pos = grasp_pos + self._vec3(0.0, 0.0, cfg.pre_grasp_clearance)
         probe_lift_pos = grasp_pos + self._vec3(0.0, 0.0, cfg.probe_lift_height)
@@ -164,7 +166,17 @@ class TargetRegistry:
         safety_error = self._pose_safety_error(grasp_pose, pre_grasp_pose)
         if safety_error is not None:
             return self._invalid(cfg.name, FailureReason.TARGET_UNSAFE, safety_error, state)
-        return self._valid_plan(cfg, obj.pose, grasp_pose, pre_grasp_pose, probe_lift_pos, full_lift_pos)
+        return self._valid_plan(
+            cfg,
+            obj.pose,
+            grasp_pose,
+            pre_grasp_pose,
+            probe_lift_pos,
+            full_lift_pos,
+            object_quat_w=cube_quat_w,
+            object_yaw=cube_yaw,
+            grasp_yaw=cube_yaw,
+        )
 
     def _knife_grasp_plan(self, cfg: TargetConfig, state: SceneState) -> GraspPlan:
         obj = state.objects[cfg.scene_key]
@@ -179,8 +191,10 @@ class TargetRegistry:
         )
         handle_pos = handle_pos[0]
         handle_quat = math_utils.normalize(handle_quat)[0]
-        _, _, knife_yaw = math_utils.euler_xyz_from_quat(link_pose.quat_w.unsqueeze(0))
-        grasp_quat = self._top_down_quat(knife_yaw[0] + KNIFE_GRIP_YAW_OFFSET)
+        knife_quat_w = math_utils.normalize(link_pose.quat_w.unsqueeze(0))[0]
+        knife_yaw = self._yaw_from_local_x(knife_quat_w)
+        knife_grasp_yaw = knife_yaw + math.pi / 2.0
+        grasp_quat = self._top_down_quat(knife_grasp_yaw)
         grasp_pos = handle_pos + self._vec3(0.0, 0.0, KNIFE_GRASP_Z_OFFSET)
         pre_grasp_pos = grasp_pos + self._vec3(0.0, 0.0, cfg.pre_grasp_clearance)
         probe_lift_pos = grasp_pos + self._vec3(0.0, 0.0, cfg.probe_lift_height)
@@ -192,7 +206,17 @@ class TargetRegistry:
             self._print_knife_unsafe_debug(obj, link_pose, handle_pos, handle_quat, grasp_pose, pre_grasp_pose, safety_error)
             return self._invalid(cfg.name, FailureReason.TARGET_UNSAFE, safety_error, state)
         target_pose = PoseState(handle_pos, handle_quat)
-        return self._valid_plan(cfg, target_pose, grasp_pose, pre_grasp_pose, probe_lift_pos, full_lift_pos)
+        return self._valid_plan(
+            cfg,
+            target_pose,
+            grasp_pose,
+            pre_grasp_pose,
+            probe_lift_pos,
+            full_lift_pos,
+            object_quat_w=knife_quat_w,
+            object_yaw=knife_yaw,
+            grasp_yaw=knife_grasp_yaw,
+        )
 
     def _valid_plan(
         self,
@@ -202,6 +226,9 @@ class TargetRegistry:
         pre_grasp_pose: PoseState,
         probe_lift_pos: torch.Tensor,
         full_lift_pos: torch.Tensor,
+        object_quat_w: torch.Tensor | None = None,
+        object_yaw: torch.Tensor | None = None,
+        grasp_yaw: torch.Tensor | None = None,
     ) -> GraspPlan:
         return GraspPlan(
             target_name=cfg.name,
@@ -216,6 +243,9 @@ class TargetRegistry:
             gripper_close_command=cfg.gripper_close_command,
             min_gripper_width=cfg.min_gripper_width,
             max_gripper_width=cfg.max_gripper_width,
+            object_quat_w=object_quat_w,
+            object_yaw=None if object_yaw is None else float(object_yaw.detach().cpu()),
+            grasp_yaw=None if grasp_yaw is None else float(grasp_yaw.detach().cpu()),
         )
 
     def _top_down_quat(self, yaw: torch.Tensor) -> torch.Tensor:
@@ -225,6 +255,11 @@ class TargetRegistry:
         down_quat = torch.tensor(TOP_DOWN_GRASP_QUAT_WXYZ, dtype=torch.float32, device=self.device)
         quat = math_utils.quat_mul(yaw_quat.unsqueeze(0), down_quat.unsqueeze(0))[0]
         return math_utils.normalize(quat.unsqueeze(0))[0]
+
+    def _yaw_from_local_x(self, object_quat: torch.Tensor) -> torch.Tensor:
+        local_x = torch.tensor([[1.0, 0.0, 0.0]], dtype=torch.float32, device=object_quat.device)
+        world_x = math_utils.quat_apply(object_quat.unsqueeze(0), local_x)[0]
+        return torch.atan2(world_x[1], world_x[0])
 
     def _pose_safety_error(self, grasp_pose: PoseState, pre_grasp_pose: PoseState) -> str | None:
         for label, pose in (("grasp", grasp_pose), ("pre_grasp", pre_grasp_pose)):
