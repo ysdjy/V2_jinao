@@ -45,12 +45,10 @@ class BaseSkill:
 
 def pose_error(current: PoseState, desired: PoseState) -> PoseError:
     pos_error = float(torch.linalg.norm(current.pos_w - desired.pos_w).detach().cpu())
-    ori_error = float(
-        math_utils.quat_error_magnitude(
-            current.quat_w.unsqueeze(0),
-            desired.quat_w.unsqueeze(0),
-        )[0].detach().cpu()
-    )
+    current_quat = math_utils.normalize(current.quat_w.unsqueeze(0))[0]
+    desired_quat = math_utils.normalize(desired.quat_w.unsqueeze(0))[0]
+    dot = torch.abs(torch.dot(current_quat, desired_quat)).clamp(max=1.0)
+    ori_error = float((2.0 * torch.acos(dot)).detach().cpu())
     return PoseError(pos_error, ori_error)
 
 
@@ -61,12 +59,16 @@ def step_pose(current: PoseState, desired: PoseState, max_pos_step: float, max_o
         pos = current.pos_w + delta / dist * max_pos_step
     else:
         pos = desired.pos_w
-    angle = math_utils.quat_error_magnitude(current.quat_w.unsqueeze(0), desired.quat_w.unsqueeze(0))[0]
+    current_quat = math_utils.normalize(current.quat_w.unsqueeze(0))[0]
+    desired_quat = math_utils.normalize(desired.quat_w.unsqueeze(0))[0]
+    if float(torch.dot(current_quat, desired_quat).detach().cpu()) < 0.0:
+        desired_quat = -desired_quat
+    angle = math_utils.quat_error_magnitude(current_quat.unsqueeze(0), desired_quat.unsqueeze(0))[0]
     if float(angle) > max_ori_step and float(angle) > 1.0e-6:
         tau = max_ori_step / max(float(angle), 1.0e-6)
-        quat = math_utils.quat_slerp(current.quat_w, desired.quat_w, tau)
+        quat = math_utils.quat_slerp(current_quat, desired_quat, tau)
     else:
-        quat = desired.quat_w
+        quat = desired_quat
     return PoseState(pos, math_utils.normalize(quat.unsqueeze(0))[0])
 
 

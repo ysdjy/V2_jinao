@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import time
 
 from isaaclab.app import AppLauncher
@@ -36,6 +37,12 @@ parser.add_argument("--randomize_test_pose", action="store_true", default=False,
 parser.add_argument("--layout_only", action="store_true", default=False, help="Only sample and validate layout.")
 parser.add_argument("--layout_trials", type=int, default=1, help="Number of layout-only trials to run.")
 parser.add_argument("--show_layout_debug", action="store_true", default=False, help="Show layout debug overlays.")
+parser.add_argument(
+    "--cube_grasp_z_offset",
+    type=float,
+    default=0.0,
+    help="TCP z offset from cube center for grasp debugging, in [-0.010, 0.015] m.",
+)
 parser.add_argument("--num_envs", type=int, default=1, help="Number of environments to simulate. Skill UI supports 1.")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
@@ -108,7 +115,7 @@ class SkillTestWindow:
                     "state",
                     "elapsed",
                     "position_error",
-                    "orientation_error",
+                    "orientation_error_deg",
                     "gripper_width",
                     "layout_seed",
                     "reset_index",
@@ -145,6 +152,7 @@ class SkillTestWindow:
         elapsed = 0.0
         if active is not None:
             elapsed = max(0.0, state.sim_time - getattr(active.runtime, "start_time", state.sim_time))
+        orientation_error = getattr(getattr(active, "runtime", None), "final_error_ori", None)
         values = {
             "selected_skill": self.controller.selected_skill.value,
             "selected_target": self.controller.selected_target,
@@ -152,7 +160,7 @@ class SkillTestWindow:
             "state": executor.current_state_name,
             "elapsed": f"{elapsed:.2f}",
             "position_error": str(getattr(getattr(active, "runtime", None), "final_error_pos", None)),
-            "orientation_error": str(getattr(getattr(active, "runtime", None), "final_error_ori", None)),
+            "orientation_error_deg": None if orientation_error is None else f"{math.degrees(orientation_error):.2f}",
             "gripper_width": f"{state.robot.gripper_width:.5f}",
             "layout_seed": None if layout_result is None else layout_result.seed,
             "reset_index": None if layout_result is None else layout_result.reset_index,
@@ -246,7 +254,7 @@ def main():
 
     provider = SceneStateProvider(env)
     layout_manager = SimpleSceneLayoutManager(env=env, base_seed=args_cli.seed)
-    registry = TargetRegistry(env.unwrapped.device)
+    registry = TargetRegistry(env.unwrapped.device, cube_grasp_z_offset=args_cli.cube_grasp_z_offset)
     executor = SkillExecutor(registry)
     controller = UIController()
     controller.selected_skill = _skill_type_from_arg(args_cli.skill)
@@ -330,9 +338,11 @@ def _update_debug_visuals(visualizer: DebugVisualizer, state, executor: SkillExe
     if plan is not None:
         visualizer.update_pose("target_object", pose_tensor(plan.target_pose))
         visualizer.update_pose("grasp_frame", pose_tensor(plan.grasp_pose))
+        visualizer.update_pose("planned_grasp_frame", pose_tensor(plan.grasp_pose))
         visualizer.update_pose("pre_grasp_frame", pose_tensor(plan.pre_grasp_pose))
     visualizer.update_pose("active_command", pose_tensor(runtime.last_command_pose))
-    visualizer.update_pose("locked_lift_frame", pose_tensor(runtime.locked_lift_pose))
+    visualizer.update_pose("locked_probe_lift_frame", pose_tensor(runtime.locked_probe_lift_pose))
+    visualizer.update_pose("locked_full_lift_frame", pose_tensor(runtime.locked_full_lift_pose))
 
 
 if __name__ == "__main__":
