@@ -35,6 +35,10 @@ class UIController:
         with self._lock:
             self._pending = PendingCommand("start", request)
 
+    def queue_request(self, request: SkillRequest):
+        with self._lock:
+            self._pending = PendingCommand("start", request)
+
     def request_stop(self):
         with self._lock:
             self._pending = PendingCommand("stop")

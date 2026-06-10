@@ -78,6 +78,22 @@ SKILL_LABELS = [
     ("Close Drawer", SkillType.CLOSE_DRAWER),
 ]
 
+DEFAULT_PLACE_POINTS = {
+    "point_a": [0.42, 0.10, 0.00],
+    "point_b": [0.55, 0.10, 0.00],
+    "point_c": [0.68, 0.10, 0.00],
+}
+POINT_X_MIN = 0.30
+POINT_X_MAX = 0.75
+POINT_Y_MIN = -0.05
+POINT_Y_MAX = 0.25
+POINT_Z_MIN = 0.00
+POINT_Z_MAX = 0.60
+PLACE_POINT_VISUAL_Z_OFFSET = 0.005
+PLACE_POINT_AXIS_LENGTH = 0.035
+PLACE_POINT_AXIS_WIDTH = 0.002
+PLACE_MOVE_STEPS = [("1 cm", 0.010), ("5 cm", 0.050)]
+
 
 def enable_collision_debug_visualization():
     settings = carb.settings.get_settings()
@@ -94,8 +110,12 @@ class SkillTestWindow:
         self.executor = executor
         self.registry = registry
         self.target_keys = [key for key, _ in registry.display_targets()]
+        self.place_point_keys = list(DEFAULT_PLACE_POINTS.keys())
+        self.place_points = {key: list(value) for key, value in DEFAULT_PLACE_POINTS.items()}
+        self.selected_place_point = "point_a"
+        self.place_move_step = PLACE_MOVE_STEPS[0][1]
         self.status_labels = {}
-        self.window = ui.Window("Franka Skill Test", width=420, height=520)
+        self.window = ui.Window("Franka Skill Test", width=460, height=700)
         with self.window.frame:
             with ui.VStack(spacing=6, height=0):
                 ui.Label("Skill")
@@ -108,9 +128,42 @@ class SkillTestWindow:
                     ui.Button("Start", clicked_fn=self._start)
                     ui.Button("Stop", clicked_fn=self.controller.request_stop)
                     ui.Button("Reset", clicked_fn=self.controller.request_reset)
+                ui.Label("Place point")
+                self.place_point_model = ui.ComboBox(0, *self.place_point_keys).model
+                self.place_point_model.add_item_changed_fn(self._on_place_point_changed)
+                ui.Label("Place move step")
+                self.place_step_model = ui.ComboBox(0, *[label for label, _ in PLACE_MOVE_STEPS]).model
+                self.place_step_model.add_item_changed_fn(self._on_place_step_changed)
+                with ui.VStack(spacing=4, height=0):
+                    with ui.HStack(spacing=6):
+                        ui.Label("")
+                        ui.Button("Up (+Z)", clicked_fn=lambda: self._move_place_point(0.0, 0.0, 1.0))
+                        ui.Label("")
+                    with ui.HStack(spacing=6):
+                        ui.Label("")
+                        ui.Button("Forward (+X)", clicked_fn=lambda: self._move_place_point(1.0, 0.0, 0.0))
+                        ui.Label("")
+                    with ui.HStack(spacing=6):
+                        ui.Button("Left (+Y)", clicked_fn=lambda: self._move_place_point(0.0, 1.0, 0.0))
+                        ui.Button("Reset Point", clicked_fn=self._reset_place_point)
+                        ui.Button("Right (-Y)", clicked_fn=lambda: self._move_place_point(0.0, -1.0, 0.0))
+                    with ui.HStack(spacing=6):
+                        ui.Label("")
+                        ui.Button("Backward (-X)", clicked_fn=lambda: self._move_place_point(-1.0, 0.0, 0.0))
+                        ui.Label("")
+                    with ui.HStack(spacing=6):
+                        ui.Label("")
+                        ui.Button("Down (-Z)", clicked_fn=lambda: self._move_place_point(0.0, 0.0, -1.0))
+                        ui.Label("")
                 for key in (
                     "selected_skill",
                     "selected_target",
+                    "selected_place_point",
+                    "place_point_x",
+                    "place_point_y",
+                    "place_point_z",
+                    "place_move_step",
+                    "held_object",
                     "runtime_status",
                     "state",
                     "elapsed",
@@ -141,8 +194,42 @@ class SkillTestWindow:
         index = model.get_item_value_model().as_int
         self.controller.selected_target = self.target_keys[index]
 
+    def _on_place_point_changed(self, model, item):
+        index = model.get_item_value_model().as_int
+        self.selected_place_point = self.place_point_keys[index]
+
+    def _on_place_step_changed(self, model, item):
+        index = model.get_item_value_model().as_int
+        self.place_move_step = PLACE_MOVE_STEPS[index][1]
+
+    def _move_place_point(self, x_dir: float, y_dir: float, z_dir: float):
+        point = self.place_points[self.selected_place_point]
+        point[0] = _clamp(point[0] + x_dir * self.place_move_step, POINT_X_MIN, POINT_X_MAX)
+        point[1] = _clamp(point[1] + y_dir * self.place_move_step, POINT_Y_MIN, POINT_Y_MAX)
+        point[2] = _clamp(point[2] + z_dir * self.place_move_step, POINT_Z_MIN, POINT_Z_MAX)
+
+    def _reset_place_point(self):
+        self.place_points[self.selected_place_point] = list(DEFAULT_PLACE_POINTS[self.selected_place_point])
+
+    def _held_object_name(self) -> str:
+        result = self.executor.last_result
+        if result is not None and result.skill_type == SkillType.GRASP and result.success and result.target_name:
+            return result.target_name
+        return self.controller.selected_target
+
     def _start(self):
-        self.controller.request_start()
+        if self.controller.selected_skill == SkillType.PLACE:
+            selected_xyz = list(self.place_points[self.selected_place_point])
+            self.controller.queue_request(
+                _make_request(
+                    SkillType.PLACE,
+                    self._held_object_name(),
+                    place_point_name=self.selected_place_point,
+                    place_point_xyz=selected_xyz,
+                )
+            )
+            return
+        self.controller.queue_request(_make_request(self.controller.selected_skill, self.controller.selected_target))
 
     def update(self, state, executor: SkillExecutor, layout_result: SimpleLayoutResult | None):
         result = executor.last_result
@@ -153,9 +240,16 @@ class SkillTestWindow:
         if active is not None:
             elapsed = max(0.0, state.sim_time - getattr(active.runtime, "start_time", state.sim_time))
         orientation_error = getattr(getattr(active, "runtime", None), "final_error_ori", None)
+        point = self.place_points[self.selected_place_point]
         values = {
             "selected_skill": self.controller.selected_skill.value,
             "selected_target": self.controller.selected_target,
+            "selected_place_point": self.selected_place_point,
+            "place_point_x": f"{point[0]:.3f}",
+            "place_point_y": f"{point[1]:.3f}",
+            "place_point_z": f"{point[2]:.3f}",
+            "place_move_step": f"{self.place_move_step:.3f}",
+            "held_object": self._held_object_name(),
             "runtime_status": executor.status.value,
             "state": executor.current_state_name,
             "elapsed": f"{elapsed:.2f}",
@@ -187,11 +281,33 @@ def _short_pose(pose: torch.Tensor | None) -> str:
     return "[" + ", ".join(f"{v:.3f}" for v in values[:3]) + "]"
 
 
+def _clamp(value: float, lower: float, upper: float) -> float:
+    return min(max(value, lower), upper)
+
+
 def _skill_type_from_arg(value: str) -> SkillType:
     return SkillType(value)
 
 
-def _make_request(skill_type: SkillType, target: str) -> SkillRequest:
+def _make_request(
+    skill_type: SkillType,
+    target: str,
+    place_point_name: str = "point_a",
+    place_point_xyz: list[float] | None = None,
+) -> SkillRequest:
+    if skill_type == SkillType.PLACE:
+        selected_xyz = list(DEFAULT_PLACE_POINTS[place_point_name] if place_point_xyz is None else place_point_xyz)
+        return SkillRequest(
+            request_id=f"{skill_type.value}_{target}_{time.time_ns()}",
+            skill_type=skill_type,
+            source_object=target,
+            destination_type="point",
+            destination_object=place_point_name,
+            parameters={
+                "target_frame": "env_local",
+                "target_surface_xyz": [selected_xyz[0], selected_xyz[1], selected_xyz[2]],
+            },
+        )
     return SkillRequest(
         request_id=f"{skill_type.value}_{target}_{time.time_ns()}",
         skill_type=skill_type,
@@ -278,7 +394,7 @@ def main():
     _settle_layout(env, provider)
 
     if args_cli.auto_start:
-        controller.request_start(controller.selected_skill, controller.selected_target)
+        controller.queue_request(_make_request(controller.selected_skill, controller.selected_target))
 
     step_count = 0
     layout_reset_index = 0
@@ -307,7 +423,8 @@ def main():
             actions = provider.make_action(command.tcp_pose_w, command.gripper_command)
             env.step(actions)
 
-            _update_debug_visuals(visualizer, state, executor)
+            place_points = window.place_points if window is not None else DEFAULT_PLACE_POINTS
+            _update_debug_visuals(visualizer, state, executor, place_points)
             if window is not None:
                 window.update(state, executor, layout_result)
 
@@ -328,8 +445,13 @@ def main():
     env.close()
 
 
-def _update_debug_visuals(visualizer: DebugVisualizer, state, executor: SkillExecutor):
-    visualizer.update_pose("current_tcp", pose_tensor(state.robot.tcp_pose))
+def _update_debug_visuals(
+    visualizer: DebugVisualizer,
+    state,
+    executor: SkillExecutor,
+    place_points: dict[str, list[float]] | None = None,
+):
+    visualizer.update_pose("current_tcp", pose_tensor(state.robot.tcp_pose), use_coordinate_arrows=True)
     for object_name in ("cube_1", "cube_2", "cube_3", "knife"):
         obj = state.objects.get(object_name)
         if obj is not None:
@@ -339,11 +461,27 @@ def _update_debug_visuals(visualizer: DebugVisualizer, state, executor: SkillExe
                 axis_length=OBJECT_AXIS_LENGTH,
                 axis_width=OBJECT_AXIS_WIDTH,
             )
+    if place_points:
+        quat = torch.tensor([1.0, 0.0, 0.0, 0.0], dtype=torch.float32, device=state.env_origin_w.device)
+        visual_offset = torch.tensor(
+            [0.0, 0.0, PLACE_POINT_VISUAL_Z_OFFSET],
+            dtype=torch.float32,
+            device=state.env_origin_w.device,
+        )
+        for point_name, point_xyz in place_points.items():
+            point_local = torch.tensor(point_xyz, dtype=torch.float32, device=state.env_origin_w.device)
+            marker_pos_w = state.env_origin_w + point_local + visual_offset
+            visualizer.update_pose(
+                f"place_{point_name}",
+                torch.cat((marker_pos_w, quat), dim=-1),
+                axis_length=PLACE_POINT_AXIS_LENGTH,
+                axis_width=PLACE_POINT_AXIS_WIDTH,
+            )
     active = executor.active_skill
     runtime = getattr(active, "runtime", None)
     if runtime is None:
         return
-    visualizer.update_pose("current_stage_target", pose_tensor(runtime.last_command_pose))
+    visualizer.update_pose("current_stage_target", pose_tensor(runtime.last_command_pose), use_coordinate_arrows=True)
 
 
 if __name__ == "__main__":

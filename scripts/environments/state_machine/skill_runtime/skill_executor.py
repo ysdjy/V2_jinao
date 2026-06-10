@@ -42,6 +42,9 @@ class SkillExecutor:
             return None
         if request.skill_type == SkillType.PLACE:
             self.active_skill = PlaceSkill(request)
+            self.active_skill.start(state)
+            self.status = self.active_skill.status
+            return None
         elif request.skill_type in (SkillType.OPEN_DRAWER, SkillType.CLOSE_DRAWER):
             self.active_skill = DrawerSkill(request)
         else:
