@@ -1,4 +1,6 @@
-"""Scene layout management for deterministic, collision-free initialization.
+"""Advanced experimental layout manager; not used by the default skill test.
+
+Scene layout management for deterministic, collision-free initialization.
 
 The layout logic is separated from skill execution. It samples and writes the
 cabinet plus movable objects, then validates the reset layout before control

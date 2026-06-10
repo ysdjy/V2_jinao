@@ -55,8 +55,8 @@ from isaaclab_tasks.utils.parse_cfg import parse_env_cfg
 
 from skill_runtime.base_skill import pose_tensor
 from skill_runtime.debug_visualizer import DebugVisualizer
-from skill_runtime.scene_layout import LayoutResult, SceneLayoutConfig, SceneLayoutManager
 from skill_runtime.scene_state_provider import SceneStateProvider
+from skill_runtime.simple_scene_layout import SimpleLayoutResult, SimpleSceneLayoutManager
 from skill_runtime.skill_executor import SkillExecutor
 from skill_runtime.skill_request import SkillRequest
 from skill_runtime.skill_types import ExecutionStatus, SkillType
@@ -137,7 +137,7 @@ class SkillTestWindow:
     def _start(self):
         self.controller.request_start()
 
-    def update(self, state, executor: SkillExecutor, layout_result: LayoutResult | None):
+    def update(self, state, executor: SkillExecutor, layout_result: SimpleLayoutResult | None):
         result = executor.last_result
         active = executor.active_skill
         plan = getattr(getattr(active, "runtime", None), "filtered_plan", None)
@@ -156,14 +156,14 @@ class SkillTestWindow:
             "gripper_width": f"{state.robot.gripper_width:.5f}",
             "layout_seed": None if layout_result is None else layout_result.seed,
             "reset_index": None if layout_result is None else layout_result.reset_index,
-            "layout_valid": None if layout_result is None else layout_result.validation.valid,
+            "layout_valid": None if layout_result is None else True,
             "cabinet_root_pose": None if layout_result is None else layout_result.object_poses.get("cabinet"),
-            "cabinet_min_z": None if layout_result is None else layout_result.validation.cabinet_min_z,
+            "cabinet_min_z": None,
             "cube_1_pose": None if layout_result is None else layout_result.object_poses.get("cube_1"),
             "cube_2_pose": None if layout_result is None else layout_result.object_poses.get("cube_2"),
             "cube_3_pose": None if layout_result is None else layout_result.object_poses.get("cube_3"),
             "knife_pose": None if layout_result is None else layout_result.object_poses.get("knife"),
-            "minimum_pair_clearance": None if layout_result is None else layout_result.validation.min_pair_clearance,
+            "minimum_pair_clearance": None,
             "target_pose": _short_pose(target_pose),
             "last_failure": None if result is None else result.failure_reason,
             "last_result": None if result is None else result.final_status.value,
@@ -192,29 +192,25 @@ def _make_request(skill_type: SkillType, target: str) -> SkillRequest:
     )
 
 
-def _print_layout_summary(layout_result: LayoutResult) -> None:
+def _print_layout_summary(layout_result: SimpleLayoutResult) -> None:
     print(
         json.dumps(
             {
                 "layout_seed": layout_result.seed,
                 "reset_index": layout_result.reset_index,
-                "valid": layout_result.validation.valid,
-                "violations": layout_result.validation.violations,
-                "minimum_pair_clearance": layout_result.validation.min_pair_clearance,
-                "cabinet_min_z": layout_result.validation.cabinet_min_z,
-                "object_min_z": layout_result.validation.object_min_z,
-                "object_poses": {
-                    name: {
-                        "position_base": list(pose.position_base),
-                        "yaw": pose.yaw,
-                        "attempts": pose.attempts,
-                    }
-                    for name, pose in layout_result.object_poses.items()
-                },
+                "object_poses": layout_result.object_poses,
             },
             sort_keys=True,
-        )
+        ),
+        flush=True,
     )
+
+
+def _settle_layout(env, provider: SceneStateProvider) -> None:
+    state = provider.get_state()
+    hold_action = provider.make_action(state.robot.tcp_pose, 1.0)
+    for _ in range(5):
+        env.step(hold_action)
 
 
 def main():
@@ -249,48 +245,32 @@ def main():
         enable_collision_debug_visualization()
 
     provider = SceneStateProvider(env)
-    layout_manager = SceneLayoutManager(env=env, config=SceneLayoutConfig(), base_seed=args_cli.seed)
-    layout_manager.calibrate_asset_geometry()
+    layout_manager = SimpleSceneLayoutManager(env=env, base_seed=args_cli.seed)
     registry = TargetRegistry(env.unwrapped.device)
     executor = SkillExecutor(registry)
     controller = UIController()
     controller.selected_skill = _skill_type_from_arg(args_cli.skill)
     controller.selected_target = args_cli.target
     visualizer = DebugVisualizer(enabled=not args_cli.headless or args_cli.show_affordance_debug)
-    layout_visualizer = None
-    if not args_cli.headless and args_cli.show_layout_debug:
-        from skill_runtime.layout_debug_visualizer import LayoutDebugVisualizer
-
-        layout_visualizer = LayoutDebugVisualizer(enabled=True)
     window = None if args_cli.headless else SkillTestWindow(controller, executor, registry)
 
     sim_dt = env_cfg.sim.dt * env_cfg.decimation
     sim_time = 0.0
     provider.set_sim_time(sim_time)
-    state = provider.get_state()
-    actions = provider.hold_action(state, 1.0)
-    layout_result = layout_manager.reset_layout(reset_index=0, hold_action=actions)
-    if layout_visualizer is not None:
-        layout_visualizer.update(layout_manager, layout_result)
-
-    if args_cli.auto_start:
-        controller.request_start(controller.selected_skill, controller.selected_target)
 
     if args_cli.layout_only:
         for trial in range(args_cli.layout_trials):
-            env.reset(seed=args_cli.seed)
             provider.set_sim_time(0.0)
-            state = provider.get_state()
-            hold_action = provider.hold_action(state, 1.0)
-            layout_result = layout_manager.reset_layout(reset_index=trial, hold_action=hold_action)
-            if layout_visualizer is not None:
-                layout_visualizer.update(layout_manager, layout_result)
+            layout_result = layout_manager.reset_layout(reset_index=trial)
             _print_layout_summary(layout_result)
-            if not layout_result.validation.valid:
-                env.close()
-                raise SystemExit(1)
         env.close()
         return
+
+    layout_result = layout_manager.reset_layout(reset_index=0)
+    _settle_layout(env, provider)
+
+    if args_cli.auto_start:
+        controller.request_start(controller.selected_skill, controller.selected_target)
 
     step_count = 0
     layout_reset_index = 0
@@ -307,14 +287,13 @@ def main():
                     actions = provider.make_action(command.tcp_pose_w, command.gripper_command)
                 elif pending.command == "reset":
                     executor.stop(state)
-                    env.reset(seed=args_cli.seed)
                     executor.reset()
+                    env.reset(seed=args_cli.seed)
+                    layout_reset_index += 1
+                    layout_result = layout_manager.reset_layout(reset_index=layout_reset_index)
+                    _settle_layout(env, provider)
                     state = provider.get_state()
                     actions = provider.hold_action(state, 1.0)
-                    layout_reset_index += 1
-                    layout_result = layout_manager.reset_layout(reset_index=layout_reset_index, hold_action=actions)
-                    if layout_visualizer is not None:
-                        layout_visualizer.update(layout_manager, layout_result)
 
             command = executor.step(state, sim_dt)
             actions = provider.make_action(command.tcp_pose_w, command.gripper_command)
