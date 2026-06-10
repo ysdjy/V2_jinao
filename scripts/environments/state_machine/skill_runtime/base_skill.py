@@ -37,7 +37,7 @@ class BaseSkill:
     def cancel(self, state: SceneState) -> SkillCommand:
         self.status = ExecutionStatus.STOPPED
         self.failure_reason = FailureReason.CANCELLED_BY_USER
-        return SkillCommand(state.robot.tcp_pose, state.robot.gripper_width, self.status)
+        return SkillCommand(state.robot.tcp_pose, 1.0, self.status)
 
     def result(self, state: SceneState) -> SkillResult:
         raise NotImplementedError

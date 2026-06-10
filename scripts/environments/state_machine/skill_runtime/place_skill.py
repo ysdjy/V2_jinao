@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from typing import Any
 
 import torch
 
@@ -68,8 +69,9 @@ class _Runtime:
 
 
 class PlaceSkill:
-    def __init__(self, request: SkillRequest, config: PlaceSkillConfig | None = None):
+    def __init__(self, request: SkillRequest, held_object: Any | None = None, config: PlaceSkillConfig | None = None):
         self.request = request
+        self.held_object = held_object
         self.cfg = config or PlaceSkillConfig()
         self.status = ExecutionStatus.IDLE
         self.failure_reason = FailureReason.NONE
@@ -100,12 +102,12 @@ class PlaceSkill:
         if self.status == ExecutionStatus.IDLE:
             self.start(state)
         if self.status in (ExecutionStatus.SUCCEEDED, ExecutionStatus.FAILED, ExecutionStatus.STOPPED):
-            return SkillCommand(state.robot.tcp_pose, state.robot.gripper_width, self.status)
+            return SkillCommand(state.robot.tcp_pose, self._terminal_gripper_command(), self.status)
 
         plan = self.runtime.plan
         if plan is None:
             self._fail(state, FailureReason.REQUEST_INVALID, "place plan is missing")
-            return SkillCommand(state.robot.tcp_pose, state.robot.gripper_width, self.status)
+            return SkillCommand(state.robot.tcp_pose, -1.0, self.status)
 
         desired = state.robot.tcp_pose
         command_pose = state.robot.tcp_pose
@@ -146,7 +148,7 @@ class PlaceSkill:
         self.status = ExecutionStatus.STOPPED
         self.failure_reason = FailureReason.CANCELLED_BY_USER
         self._transition(state, "CANCELLED")
-        return SkillCommand(state.robot.tcp_pose, state.robot.gripper_width, self.status)
+        return SkillCommand(state.robot.tcp_pose, -1.0, self.status)
 
     def result(self, state: SceneState) -> SkillResult:
         obj_pose = None
@@ -172,6 +174,9 @@ class PlaceSkill:
         held_name = self.request.source_object
         if not held_name:
             self._fail(state, FailureReason.REQUEST_INVALID, "place request missing source_object")
+            return None
+        if self.held_object is None or getattr(self.held_object, "object_name", None) != held_name:
+            self._fail(state, FailureReason.REQUEST_INVALID, "place request missing held object context")
             return None
         held = state.objects.get(held_name)
         if held is None:
@@ -199,13 +204,8 @@ class PlaceSkill:
         object_target_pos_w = state.env_origin_w + object_target_local
         object_target_quat_w = math_utils.normalize(held.pose.quat_w.unsqueeze(0))[0]
         pre_object_pos_w = object_target_pos_w + torch.tensor([0.0, 0.0, PRE_PLACE_HEIGHT], dtype=torch.float32, device=device)
-
-        object_to_tcp_pos, object_to_tcp_quat = math_utils.subtract_frame_transforms(
-            held.pose.pos_w.unsqueeze(0),
-            object_target_quat_w.unsqueeze(0),
-            state.robot.tcp_pose.pos_w.unsqueeze(0),
-            state.robot.tcp_pose.quat_w.unsqueeze(0),
-        )
+        object_to_tcp_pos = self.held_object.object_to_tcp_pos.to(device=device, dtype=torch.float32).unsqueeze(0)
+        object_to_tcp_quat = self.held_object.object_to_tcp_quat.to(device=device, dtype=torch.float32).unsqueeze(0)
         place_tcp_pos, place_tcp_quat = math_utils.combine_frame_transforms(
             object_target_pos_w.unsqueeze(0),
             object_target_quat_w.unsqueeze(0),
@@ -342,3 +342,6 @@ class PlaceSkill:
 
     def _tensor_list(self, tensor: torch.Tensor) -> list[float]:
         return [round(float(v), 5) for v in tensor.detach().cpu().tolist()]
+
+    def _terminal_gripper_command(self) -> float:
+        return 1.0 if self.status == ExecutionStatus.SUCCEEDED else -1.0

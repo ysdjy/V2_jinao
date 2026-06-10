@@ -112,7 +112,7 @@ class GraspSkill:
         plan = self._plan_for_state(state)
         if plan is None or not plan.valid:
             self._fail(state, plan.failure_reason if plan else FailureReason.TARGET_LOST, plan.message if plan else "")
-            return SkillCommand(state.robot.tcp_pose, state.robot.gripper_width, self.status)
+            return SkillCommand(state.robot.tcp_pose, self._open_command(), self.status)
 
         if self.runtime.state == GraspState.ACQUIRE_TARGET:
             if not self._poses_are_finite(plan):
@@ -259,7 +259,7 @@ class GraspSkill:
         self.status = ExecutionStatus.STOPPED
         self.failure_reason = FailureReason.CANCELLED_BY_USER
         self._transition(state, GraspState.CANCELLED)
-        return SkillCommand(state.robot.tcp_pose, state.robot.gripper_width, self.status)
+        return SkillCommand(state.robot.tcp_pose, self._open_command(), self.status)
 
     def result(self, state: SceneState) -> SkillResult:
         obj_pose = self._current_target_pose(state)

@@ -122,9 +122,10 @@ class SceneStateProvider:
         action[:, 7] = gripper_command
         return action
 
-    def hold_action(self, state: SceneState, gripper_command: float | None = None) -> torch.Tensor:
-        command = state.robot.gripper_width if gripper_command is None else gripper_command
-        return self.make_action(state.robot.tcp_pose, command)
+    def hold_action(self, state: SceneState, gripper_command: float) -> torch.Tensor:
+        if gripper_command not in (-1.0, 1.0):
+            raise ValueError("gripper_command must be -1.0 or 1.0")
+        return self.make_action(state.robot.tcp_pose, gripper_command)
 
     def reset_scene_deterministic(self):
         raise RuntimeError("Scene reset moved to SceneLayoutManager.reset_layout()")

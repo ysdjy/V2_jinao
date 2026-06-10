@@ -43,6 +43,10 @@ class UIController:
         with self._lock:
             self._pending = PendingCommand("stop")
 
+    def request_resume(self):
+        with self._lock:
+            self._pending = PendingCommand("resume")
+
     def request_reset(self):
         with self._lock:
             self._pending = PendingCommand("reset")

@@ -127,6 +127,7 @@ class SkillTestWindow:
                 with ui.HStack(spacing=6):
                     ui.Button("Start", clicked_fn=self._start)
                     ui.Button("Stop", clicked_fn=self.controller.request_stop)
+                    ui.Button("Resume", clicked_fn=self.controller.request_resume)
                     ui.Button("Reset", clicked_fn=self.controller.request_reset)
                 ui.Label("Place point")
                 self.place_point_model = ui.ComboBox(0, *self.place_point_keys).model
@@ -164,6 +165,9 @@ class SkillTestWindow:
                     "place_point_z",
                     "place_move_step",
                     "held_object",
+                    "active_skill",
+                    "paused",
+                    "latched_gripper_command",
                     "runtime_status",
                     "state",
                     "elapsed",
@@ -212,18 +216,19 @@ class SkillTestWindow:
         self.place_points[self.selected_place_point] = list(DEFAULT_PLACE_POINTS[self.selected_place_point])
 
     def _held_object_name(self) -> str:
-        result = self.executor.last_result
-        if result is not None and result.skill_type == SkillType.GRASP and result.success and result.target_name:
-            return result.target_name
-        return self.controller.selected_target
+        held_object = self.executor.held_object
+        if held_object is not None:
+            return held_object.object_name
+        return "None"
 
     def _start(self):
         if self.controller.selected_skill == SkillType.PLACE:
             selected_xyz = list(self.place_points[self.selected_place_point])
+            held_name = self.executor.held_object.object_name if self.executor.held_object is not None else None
             self.controller.queue_request(
                 _make_request(
                     SkillType.PLACE,
-                    self._held_object_name(),
+                    held_name,
                     place_point_name=self.selected_place_point,
                     place_point_xyz=selected_xyz,
                 )
@@ -241,6 +246,7 @@ class SkillTestWindow:
             elapsed = max(0.0, state.sim_time - getattr(active.runtime, "start_time", state.sim_time))
         orientation_error = getattr(getattr(active, "runtime", None), "final_error_ori", None)
         point = self.place_points[self.selected_place_point]
+        latched = executor.latched_command
         values = {
             "selected_skill": self.controller.selected_skill.value,
             "selected_target": self.controller.selected_target,
@@ -250,7 +256,10 @@ class SkillTestWindow:
             "place_point_z": f"{point[2]:.3f}",
             "place_move_step": f"{self.place_move_step:.3f}",
             "held_object": self._held_object_name(),
-            "runtime_status": executor.status.value,
+            "active_skill": None if active is None else active.__class__.__name__,
+            "paused": executor.paused,
+            "latched_gripper_command": None if latched is None else f"{latched.gripper_command:.1f}",
+            "runtime_status": executor.runtime_status,
             "state": executor.current_state_name,
             "elapsed": f"{elapsed:.2f}",
             "position_error": str(getattr(getattr(active, "runtime", None), "final_error_pos", None)),
@@ -291,14 +300,14 @@ def _skill_type_from_arg(value: str) -> SkillType:
 
 def _make_request(
     skill_type: SkillType,
-    target: str,
+    target: str | None,
     place_point_name: str = "point_a",
     place_point_xyz: list[float] | None = None,
 ) -> SkillRequest:
     if skill_type == SkillType.PLACE:
         selected_xyz = list(DEFAULT_PLACE_POINTS[place_point_name] if place_point_xyz is None else place_point_xyz)
         return SkillRequest(
-            request_id=f"{skill_type.value}_{target}_{time.time_ns()}",
+            request_id=f"{skill_type.value}_{target or 'none'}_{time.time_ns()}",
             skill_type=skill_type,
             source_object=target,
             destination_type="point",
@@ -403,14 +412,17 @@ def main():
             provider.set_sim_time(sim_time)
             state = provider.get_state()
             pending = controller.pop()
+            handled_control_command = False
             if pending is not None:
                 if pending.command == "start" and pending.request is not None:
                     executor.start(pending.request, state)
                 elif pending.command == "stop":
-                    command = executor.stop(state)
+                    command = executor.pause(state)
                     actions = provider.make_action(command.tcp_pose_w, command.gripper_command)
+                    handled_control_command = True
+                elif pending.command == "resume":
+                    executor.resume(state)
                 elif pending.command == "reset":
-                    executor.stop(state)
                     executor.reset()
                     env.reset(seed=args_cli.seed)
                     layout_reset_index += 1
@@ -418,9 +430,11 @@ def main():
                     _settle_layout(env, provider)
                     state = provider.get_state()
                     actions = provider.hold_action(state, 1.0)
+                    handled_control_command = True
 
-            command = executor.step(state, sim_dt)
-            actions = provider.make_action(command.tcp_pose_w, command.gripper_command)
+            if not handled_control_command:
+                command = executor.step(state, sim_dt)
+                actions = provider.make_action(command.tcp_pose_w, command.gripper_command)
             env.step(actions)
 
             place_points = window.place_points if window is not None else DEFAULT_PLACE_POINTS
@@ -432,7 +446,7 @@ def main():
             step_count += 1
             if args_cli.max_steps > 0 and step_count >= args_cli.max_steps:
                 if executor.status == ExecutionStatus.RUNNING:
-                    executor.stop(provider.get_state())
+                    executor.pause(provider.get_state())
                 break
             if args_cli.headless and args_cli.auto_start and executor.status in {
                 ExecutionStatus.SUCCEEDED,
