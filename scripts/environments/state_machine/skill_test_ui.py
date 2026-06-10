@@ -1,1 +1,361 @@
-IyBDb3B5cmlnaHQgKGMpIDIwMjItMjAyNiwgVGhlIElzYWFjIExhYiBQcm9qZWN0IERldmVsb3BlcnMuCiMgU1BEWC1MaWNlbnNlLUlkZW50aWZpZXI6IEJTRC0zLUNsYXVzZQoKIiIiR2VuZXJpYyBza2lsbC10ZXN0IGVudHJ5IGZvciB0aGUgbW9kaWZpZWQgRnJhbmthIHN0YWNrIHNjZW5lLgoKR1VJOgogICAgLi9pc2FhY2xhYi5zaCAtcCBzY3JpcHRzL2Vudmlyb25tZW50cy9zdGF0ZV9tYWNoaW5lL3NraWxsX3Rlc3RfdWkucHkgLS1udW1fZW52cyAxCgpIZWFkbGVzczoKICAgIC4vaXNhYWNsYWIuc2ggLXAgc2NyaXB0cy9lbnZpcm9ubWVudHMvc3RhdGVfbWFjaGluZS9za2lsbF90ZXN0X3VpLnB5IFwKICAgICAgICAtLWhlYWRsZXNzIC0tbnVtX2VudnMgMSAtLWF1dG9fc3RhcnQgLS1za2lsbCBncmFzcCAtLXRhcmdldCBjdWJlXzEgLS1tYXhfc3RlcHMgMTIwMAoiIiIKCmZyb20gX19mdXR1cmVfXyBpbXBvcnQgYW5ub3RhdGlvbnMKCiIiIkxhdW5jaCBPbW5pdmVyc2UgVG9vbGtpdCBmaXJzdC4iIiIKCmltcG9ydCBhcmdwYXJzZQppbXBvcnQganNvbgppbXBvcnQgdGltZQoKZnJvbSBpc2FjYWxhYi5hcHAgaW1wb3J0IEFwcExhdW5jaGVyCgpwYXJzZXIgPSBhcmdwYXJzZS5Bcmd1bWVudFBhcnNlcihkZXNjcmlwdGlvbj0iSXNhYWMgU2ltIG5hdGl2ZSBVSSBmb3Igc3RydWN0dXJlZCBGcmFua2Egc2tpbGxzLiIpCnBhcnNlci5hZGRfYXJndW1lbnQoIi0tZGlzYWJsZV9mYWJyaWMiLCBhY3Rpb249InN0b3JlX3RydWUiLCBkZWZhdWx0PUZhbHNlLCBoZWxwPSJEaXNhYmxlIGZhYnJpYyBhbmQgdXNlIFVTRCBJL08uIikKcGFyc2VyLmFkZF9hcmd1bWVudCgiLS1kaXNhYmxlX2NvbGxpc2lvbl9kZWJ1Z192aXMiLCBhY3Rpb249InN0b3JlX3RydWUiLCBkZWZhdWx0PUZhbHNlLCBoZWxwPSJEaXNhYmxlIGNvbGxpZGVyIG92ZXJsYXlzLiIpCnBhcnNlci5hZGRfYXJndW1lbnQoIi0tc2hvd19hZmZvcmRhbmNlX2RlYnVnIiwgYWN0aW9uPSJzdG9yZV90cnVlIiwgZGVmYXVsdD1GYWxzZSwgaGVscD0iU2hvdyBhZmZvcmRhbmNlIGRlYnVnIGZyYW1lcy4iKQpwYXJzZXIuYWRkX2FyZ3VtZW50KCItLWF1dG9fc3RhcnQiLCBhY3Rpb249InN0b3JlX3RydWUiLCBkZWZhdWx0PUZhbHNlLCBoZWxwPSJTdGFydCB0aGUgc2VsZWN0ZWQgc2tpbGwgYXV0b21hdGljYWxseS4iKQpwYXJzZXIuYWRkX2FyZ3VtZW50KCItLXNraWxsIiwgZGVmYXVsdD0iZ3Jhc3AiLCBjaG9pY2VzPVsiZ3Jhc3AiLCAicGxhY2UiLCAib3Blbl9kcmF3ZXIiLCAiY2xvc2VfZHJhd2VyIl0sIGhlbHA9IlNraWxsLiIpCnBhcnNlci5hZGRfYXJndW1lbnQoCiAgICAiLS10YXJnZXQiLCBkZWZhdWx0PSJjdWJlXzIiLCBjaG9pY2VzPVsiY3ViZV8xIiwgImN1YmVfMiIsICJjdWJlXzMiLCAia25pZmUiXSwgaGVscD0iR3Jhc3AgdGFyZ2V0LiIKKQpwYXJzZXIuYWRkX2FyZ3VtZW50KCItLW1heF9zdGVwcyIsIHR5cGU9aW50LCBkZWZhdWx0PTAsIGhlbHA9Ik1heGltdW0gc2ltIHN0ZXBzIGJlZm9yZSBleGl0LiAwIG1lYW5zIG5vIGxpbWl0LiIpCnBhcnNlci5hZGRfYXJndW1lbnQoIi0tc2VlZCIsIHR5cGU9aW50LCBkZWZhdWx0PTEsIGhlbHA9IkRldGVybWluaXN0aWMgc2tpbGwtdGVzdCBzZWVkLiIpCnBhcnNlci5hZGRfYXJndW1lbnQoIi0tcmFuZG9taXplX3Rlc3RfcG9zZSIsIGFjdGlvbj0ic3RvcmVfdHJ1ZSIsIGRlZmF1bHQ9RmFsc2UsIGhlbHA9IkFwcGx5IHNtYWxsIHRlc3QgcG9zZSBwZXJ0dXJiYXRpb25zLiIpCnBhcnNlci5hZGRfYXJndW1lbnQoIi0tbGF5b3V0X29ubHkiLCBhY3Rpb249InN0b3JlX3RydWUiLCBkZWZhdWx0PUZhbHNlLCBoZWxwPSJPbmx5IHNhbXBsZSBhbmQgdmFsaWRhdGUgbGF5b3V0LiIpCnBhcnNlci5hZGRfYXJndW1lbnQoIi0tbGF5b3V0X3RyaWFscyIsIHR5cGU9aW50LCBkZWZhdWx0PTEsIGhlbHA9Ik51bWJlciBvZiBsYXlvdXQtb25seSB0cmlhbHMgdG8gcnVuLiIpCnBhcnNlci5hZGRfYXJndW1lbnQoIi0tc2hvd19sYXlvdXRfZGVidWciLCBhY3Rpb249InN0b3JlX3RydWUiLCBkZWZhdWx0PUZhbHNlLCBoZWxwPSJTaG93IGxheW91dCBkZWJ1ZyBvdmVybGF5cy4iKQpwYXJzZXIuYWRkX2FyZ3VtZW50KCItLW51bV9lbnZzIiwgdHlwZT1pbnQsIGRlZmF1bHQ9MSwgaGVscD0iTnVtYmVyIG9mIGVudmlyb25tZW50cyB0byBzaW11bGF0ZS4gU2tpbGwgVUkgc3VwcG9ydHMgMS4iKQpBcHBMYXVuY2hlci5hZGRfYXBwX2xhdW5jaGVyX2FyZ3MocGFyc2VyKQphcmdzX2NsaSA9IHBhcnNlci5wYXJzZV9hcmdzKCkKCmFwcF9sYXVuY2hlciA9IEFwcExhdW5jaGVyKGhlYWRsZXNzPWFyZ3NfY2xpLmhlYWRsZXNzKQpzaW11bGF0aW9uX2FwcCA9IGFwcF9sYXVuY2hlci5hcHAKCiIiIlJlc3QgZXZlcnl0aGluZyBlbHNlLiIiIgoKaW1wb3J0IGNhcmIKaW1wb3J0IGd5bW5hc2l1bSBhcyBneW0KaW1wb3J0IHRvcmNoCgppbXBvcnQgaXNhYWNsYWJfdGFza3MgICMgbm9xYTogRjQwMQpmcm9tIGlzYWFjbGFiX3Rhc2tzLm1hbmFnZXJfYmFzZWQubWFuaXB1bGF0aW9uLnN0YWNrLnN0YWNrX2Vudl9jZmcgaW1wb3J0IFN0YWNrRW52Q2ZnCmZyb20gaXNhYWNsYWJfdGFza3MudXRpbHMucGFyc2VfY2ZnIGltcG9ydCBwYXJzZV9lbnZfY2ZnCgpmcm9tIHNraWxsX3J1bnRpbWUuYmFzZV9za2lsbCBpbXBvcnQgcG9zZV90ZW5zb3IKZnJvbSBza2lsbF9ydW50aW1lLmRlYnVnX3Zpc3VhbGl6ZXIgaW1wb3J0IERlYnVnVmlzdWFsaXplcgpmcm9tIHNraWxsX3J1bnRpbWUuc2NlbmVfc3RhdGVfcHJvdmlkZXIgaW1wb3J0IFNjZW5lU3RhdGVQcm92aWRlcgpmcm9tIHNraWxsX3J1bnRpbWUuc2tpbGxfZXhlY3V0b3IgaW1wb3J0IFNraWxsRXhlY3V0b3IKZnJvbSBza2lsbF9ydW50aW1lLnNraWxsX3JlcXVlc3QgaW1wb3J0IFNraWxsUmVxdWVzdApmcm9tIHNraWxsX3J1bnRpbWUuc2tpbGxfdHlwZXMgaW1wb3J0IEV4ZWN1dGlvblN0YXR1cywgU2tpbGxUeXBlCmZyb20gc2tpbGxfcnVudGltZS50YXJnZXRfcmVnaXN0cnkgaW1wb3J0IFRhcmdldFJlZ2lzdHJ5CmZyb20gc2tpbGxfcnVudGltZS51aV9jb250cm9sbGVyIGltcG9ydCBVSUNvbnRyb2xsZXIKCgpTS0lMTF9MQUJFTFMgPSBbCiAgICAoIkdyYXNwIiwgU2tpbGxUeXBlLkdSQVNQKSwKICAgICgiUGxhY2UiLCBTa2lsbFR5cGUuUExBQ0UpLAogICAgKCJPcGVuIERyYXdlciIsIFNraWxsVHlwZS5PUEVOX0RSQVdFUiksCiAgICAoIkNsb3NlIERyYXdlciIsIFNraWxsVHlwZS5DTE9TRV9EUkFXRVIpLApdCgoKZGVmIGVuYWJsZV9jb2xsaXNpb25fZGVidWdfdmlzdWFsaXphdGlvbigpOgogICAgc2V0dGluZ3MgPSBjYXJiLnNldHRpbmdzLmdldF9zZXR0aW5ncygpCiAgICBzZXR0aW5ncy5zZXRfaW50KCIvcGVyc2lzdGVudC9waHlzaWNzL3Zpc3VhbGl6YXRpb25EaXNwbGF5Q29sbGlkZXJzIiwgMikKICAgIHNldHRpbmdzLnNldF9ib29sKCIvcGVyc2lzdGVudC9waHlzaWNzL3Zpc3VhbGl6YXRpb25EaXNwbGF5Q29sbGlkZXJOb3JtYWxzIiwgRmFsc2UpCgoKY2xhc3MgU2tpbGxUZXN0V2luZG93OgogICAgZGVmIF9faW5pdF9fKHNlbGYsIGNvbnRyb2xsZXI6IFVJQ29udHJvbGxlciwgZXhlY3V0b3I6IFNraWxsRXhlY3V0b3IsIHJlZ2lzdHJ5OiBUYXJnZXRSZWdpc3RyeSk6CiAgICAgICAgaW1wb3J0IG9tbmkudWkgYXMgdWkKCiAgICAgICAgc2VsZi51aSA9IHVpCiAgICAgICAgc2VsZi5jb250cm9sbGVyID0gY29udHJvbGxlcgogICAgICAgIHNlbGYuZXhlY3V0b3IgPSBleGVjdXRvcgogICAgICAgIHNlbGYucmVnaXN0cnkgPSByZWdpc3RyeQogICAgICAgIHNlbGYudGFyZ2V0X2tleXMgPSBba2V5IGZvciBrZXksIF8gaW4gcmVnaXN0cnkuZGlzcGxheV90YXJnZXRzKCldCiAgICAgICAgc2VsZi5zdGF0dXNfbGFiZWxzID0ge30KICAgICAgICBzZWxmLndpbmRvdyA9IHVpLldpbmRvdygiRnJhbmthIFNraWxsIFRlc3QiLCB3aWR0aD00MjAsIGhlaWdodD01MjApCiAgICAgICAgd2l0aCBzZWxmLndpbmRvdy5mcmFtZToKICAgICAgICAgICAgd2l0aCB1aS5WU3RhY2soc3BhY2luZz02LCBoZWlnaHQ9MCk6CiAgICAgICAgICAgICAgICB1aS5MYWJlbCgiU2tpbGwiKQogICAgICAgICAgICAgICAgc2VsZi5za2lsbF9tb2RlbCA9IHVpLkNvbWJvQm94KDAsICpbbGFiZWwgZm9yIGxhYmVsLCBfIGluIFNLSUxMX0xBQkVMU10pLm1vZGVsCiAgICAgICAgICAgICAgICBzZWxmLnNraWxsX21vZGVsLmFkZF9pdGVtX2NoYW5nZWRfZm4oc2VsZi5fb25fc2tpbGxfY2hhbmdlZCkKICAgICAgICAgICAgICAgIHVpLkxhYmVsKCJHcmFzcCB0YXJnZXQiKQogICAgICAgICAgICAgICAgc2VsZi50YXJnZXRfbW9kZWwgPSB1aS5Db21ib0JveCgxLCAqW2xhYmVsIGZvciBfLCBsYWJlbCBpbiByZWdpc3RyeS5kaXNwbGF5X3RhcmdldHMoKV0pLm1vZGVsCiAgICAgICAgICAgICAgICBzZWxmLnRhcmdldF9tb2RlbC5hZGRfaXRlbV9jaGFuZ2VkX2ZuKHNlbGYuX29uX3RhcmdldF9jaGFuZ2VkKQogICAgICAgICAgICAgICAgd2l0aCB1aS5IU3RhY2soc3BhY2luZz02KToKICAgICAgICAgICAgICAgICAgICB1aS5CdXR0b24oIlN0YXJ0IiwgY2xpY2tlZF9mbj1zZWxmLl9zdGFydCkKICAgICAgICAgICAgICAgICAgICB1aS5CdXR0b24oIlN0b3AiLCBjbGlja2VkX2ZuPXNlbGYuY29udHJvbGxlci5yZXF1ZXN0X3N0b3ApCiAgICAgICAgICAgICAgICAgICAgdWkuQnV0dG9uKCJSZXNldCIsIGNsaWNrZWRfZm49c2VsZi5jb250cm9sbGVyLnJlcXVlc3RfcmVzZXQpCiAgICAgICAgICAgICAgICBmb3Iga2V5IGluICgKICAgICAgICAgICAgICAgICAgICAic2VsZWN0ZWRfc2tpbGwiLAogICAgICAgICAgICAgICAgICAgICJzZWxlY3RlZF90YXJnZXQiLAogICAgICAgICAgICAgICAgICAgICJydW50aW1lX3N0YXR1cyIsCiAgICAgICAgICAgICAgICAgICAgInN0YXRlIiwKICAgICAgICAgICAgICAgICAgICAiZWxhcHNlZCIsCiAgICAgICAgICAgICAgICAgICAgInBvc2l0aW9uX2Vycm9yIiwKICAgICAgICAgICAgICAgICAgICAib3JpZW50YXRpb25fZXJyb3IiLAogICAgICAgICAgICAgICAgICAgICJncmlwcGVyX3dpZHRoIiwKICAgICAgICAgICAgICAgICAgICAibGF5b3V0X3NlZWQiLAogICAgICAgICAgICAgICAgICAgICJyZXNldF9pbmRleCIsCiAgICAgICAgICAgICAgICAgICAgImxheW91dF92YWxpZCIsCiAgICAgICAgICAgICAgICAgICAgImNhYmluZXRfcm9vdF9wb3NlIiwKICAgICAgICAgICAgICAgICAgICAiY2FiaW5ldF9taW5feiIsCiAgICAgICAgICAgICAgICAgICAgImN1YmVfMV9wb3NlIiwKICAgICAgICAgICAgICAgICAgICAiY3ViZV8yX3Bvc2UiLAogICAgICAgICAgICAgICAgICAgICJjdWJlXzNfcG9zZSIsCiAgICAgICAgICAgICAgICAgICAgImtuaWZlX3Bvc2UiLAogICAgICAgICAgICAgICAgICAgICJtaW5pbXVtX3BhaXJfY2xlYXJhbmNlIiwKICAgICAgICAgICAgICAgICAgICAidGFyZ2V0X3Bvc2UiLAogICAgICAgICAgICAgICAgICAgICJsYXN0X2ZhaWx1cmUiLAogICAgICAgICAgICAgICAgICAgICJsYXN0X3Jlc3VsdCIsCiAgICAgICAgICAgICAgICApOgogICAgICAgICAgICAgICAgICAgIHNlbGYuc3RhdHVzX2xhYmVsc1trZXldID0gdWkuTGFiZWwoZiJ7a2V5fToiKQoKICAgIGRlZiBfb25fc2tpbGxfY2hhbmdlZChzZWxmLCBtb2RlbCwgaXRlbSk6CiAgICAgICAgaW5kZXggPSBtb2RlbC5nZXRfaXRlbV92YWx1ZV9tb2RlbCgpLmFzX2ludAogICAgICAgIHNlbGYuY29udHJvbGxlci5zZWxlY3RlZF9za2lsbCA9IFNLSUxMX0xBQkVMU1tpbmRleF1bDFdCgogICAgZGVmIF9vbl90YXJnZXRfY2hhbmdlZChzZWxmLCBtb2RlbCwgaXRlbSk6CiAgICAgICAgaW5kZXggPSBtb2RlbC5nZXRfaXRlbV92YWx1ZV9tb2RlbCgpLmFzX2ludAogICAgICAgIHNlbGYuY29udHJvbGxlci5zZWxlY3RlZF90YXJnZXQgPSBzZWxmLnRhcmdldF9rZXlzW2luZGV4XQoKICAgIGRlZiBfc3RhcnQoc2VsZik6CiAgICAgICAgc2VsZi5jb250cm9sbGVyLnJlcXVlc3Rfc3RhcnQoKQoKICAgIGRlZiB1cGRhdGUoc2VsZiwgc3RhdGUsIGV4ZWN1dG9yOiBTa2lsbEV4ZWN1dG9yLCBsYXlvdXRfcmVzdWx0OiBMYXlvdXRSZXN1bHQgfCBOb25lKToKICAgICAgICByZXN1bHQgPSBleGVjdXRvci5sYXN0X3Jlc3VsdAogICAgICAgIGFjdGl2ZSA9IGV4ZWN1dG9yLmFjdGl2ZV9za2lsbAogICAgICAgIHBsYW4gPSBnZXRhdHRyKGdldGF0dHIoYWN0aXZlLCAicnVudGltZSIsIE5vbmUpLCAiZmlsdGVyZWRfcGxhbiIsIE5vbmUpCiAgICAgICAgdGFyZ2V0X3Bvc2UgPSBwbGFuLnRhcmdldF9wb3NlLmFzX3Bvc2VfdGVuc29yKCkgaWYgcGxhbiBlbHNlIE5vbmUKICAgICAgICBlbGFwc2VkID0gMC4wCiAgICAgICAgaWYgYWN0aXZlIGlzIG5vdCBOb25lOgogICAgICAgICAgICBlbGFwc2VkID0gbWF4KDAuMCwgc3RhdGUuc2ltX3RpbWUgLSBnZXRhdHRyKGFjdGl2ZS5ydW50aW1lLCAic3RhcnRfdGltZSIsIHN0YXRlLnNpbV90aW1lKSkKICAgICAgICB2YWx1ZXMgPSB7CiAgICAgICAgICAgICJzZWxlY3RlZF9za2lsbCI6IHNlbGYuY29udHJvbGxlci5zZWxlY3RlZF9za2lsbC52YWx1ZSwKICAgICAgICAgICAgInNlbGVjdGVkX3RhcmdldCI6IHNlbGYuY29udHJvbGxlci5zZWxlY3RlZF90YXJnZXQsCiAgICAgICAgICAgICJydW50aW1lX3N0YXR1cyI6IGV4ZWN1dG9yLnN0YXR1cy52YWx1ZSwKICAgICAgICAgICAgInN0YXRlIjogZXhlY3V0b3IuY3VycmVudF9zdGF0ZV9uYW1lLAogICAgICAgICAgICAiZWxhcHNlZCI6IGYie2VsYXBzZWQ6LjJmfSIsCiAgICAgICAgICAgICJwb3NpdGlvbl9lcnJvciI6IHN0cihnZXRhdHRyKGdldGF0dHIoYWN0aXZlLCAicnVudGltZSIsIE5vbmUpLCAiZmluYWxfZXJyb3JfcG9zIiwgTm9uZSkpLAogICAgICAgICAgICAib3JpZW50YXRpb25fZXJyb3IiOiBzdHIoZ2V0YXR0cihnZXRhdHRyKGFjdGl2ZSwgInJ1bnRpbWUiLCBOb25lKSwgImZpbmFsX2Vycm9yX29yaSIsIE5vbmUpKSwKICAgICAgICAgICAgImdyaXBwZXJfd2lkdGgiOiBmIntzdGF0ZS5yb2JvdC5ncmlwcGVyX3dpZHRoOi41Zn0iLAogICAgICAgICAgICAibGF5b3V0X3NlZWQiOiBOb25lIGlmIGxheW91dF9yZXN1bHQgaXMgTm9uZSBlbHNlIGxheW91dF9yZXN1bHQuc2VlZCwKICAgICAgICAgICAgInJlc2V0X2luZGV4IjogTm9uZSBpZiBsYXlvdXRfcmVzdWx0IGlzIE5vbmUgZWxzZSBsYXlvdXRfcmVzdWx0LnJlc2V0X2luZGV4LAogICAgICAgICAgICAibGF5b3V0X3ZhbGlkIjogTm9uZSBpZiBsYXlvdXRfcmVzdWx0IGlzIE5vbmUgZWxzZSBsYXlvdXRfcmVzdWx0LnZhbGlkYXRpb24udmFsaWQsCiAgICAgICAgICAgICJjYWJpbmV0X3Jvb3RfcG9zZSI6IE5vbmUgaWYgbGF5b3V0X3Jlc3VsdCBpcyBOb25lIGVsc2UgbGFheW91dF9yZXN1bHQub2JqZWN0X3Bvc2VzLmdldCgiY2FiaW5ldCIpLAogICAgICAgICAgICAiY2FiaW5ldF9taW5feiI6IE5vbmUgaWYgbGF5b3V0X3Jlc3VsdCBpcyBOb25lIGVsc2UgbGF5b3V0X3Jlc3VsdC52YWxpZGF0aW9uLmNhYmluZXRfbWluX3osCiAgICAgICAgICAgICJjdWJlXzFfcG9zZSI6IE5vbmUgaWYgbGF5b3V0X3Jlc3VsdCBpcyBOb25lIGVsc2UgbGFheW91dF9yZXN1bHQub2JqZWN0X3Bvc2VzLmdldCgiY3ViZV8xIiksCiAgICAgICAgICAgICJjdWJlXzJfcG9zZSI6IE5vbmUgaWYgbGF5b3V0X3Jlc3VsdCBpcyBOb25lIGVsc2UgbGFheW91dF9yZXN1bHQub2JqZWN0X3Bvc2VzLmdldCgiY3ViZV8yIiksCiAgICAgICAgICAgICJjdWJlXzNfcG9zZSI6IE5vbmUgaWYgbGF5b3V0X3Jlc3VsdCBpcyBOb25lIGVsc2UgbGFheW91dF9yZXN1bHQub2JqZWN0X3Bvc2VzLmdldCgiY3ViZV8zIiksCiAgICAgICAgICAgICJrbmlmZV9wb3NlIjogTm9uZSBpZiBsYXlvdXRfcmVzdWx0IGlzIE5vbmUgZWxzZSBsYXlvdXRfcmVzdWx0Lm9iamVjdF9wb3Nlcy5nZXQoImtuaWZlIiksCiAgICAgICAgICAgICJtaW5pbXVtX3BhaXJfY2xlYXJhbmNlIjogTm9uZSBpZiBsYXlvdXRfcmVzdWx0IGlzIE5vbmUgZWxzZSBsYXlvdXRfcmVzdWx0LnZhbGlkYXRpb24ubWluX3BhaXJfY2xlYXJhbmNlLAogICAgICAgICAgICAidGFyZ2V0X3Bvc2UiOiBfc2hvcnRfcG9zZSh0YXJnZXRfcG9zZSkKICAgICAgICAgICAgLGxhc3RfZmFpbHVyZSI6IE5vbmUgaWYgcmVzdWx0IGlzIE5vbmUgZWxzZSByZXN1bHQuZmFpbHVyZV9yZWFzb24sCiAgICAgICAgICAgICJsYXN0X3Jlc3VsdCI6IE5vbmUgaWYgcmVzdWx0IGlzIE5vbmUgZWxzZSByZXN1bHQuZmluYWxfc3RhdHVzLnZhbHVlLAogICAgICAgIH0KICAgICAgICBmb3Iga2V5LCBsYWJlbCBpbiBzZWxmLnN0YXR1c19sYWJlbHMuaXRlbXMoKToKICAgICAgICAgICAgbGFiZWwudGV4dCA9IGYie2tleX06IHt2YWx1ZXNba2V5XX0iCgoKZGVmIF9zaG9ydF9wb3NlKHBvc2U6IHRvcmNoLlRlbnNvciB8IE5vbmUpIC0+IHN0cjoKICAgIGlmIHBvc2UgaXMgTm9uZToKICAgICAgICByZXR1cm4gIk5vbmUiCiAgICB2YWx1ZXMgPSBwb3NlLmRldGFjaCgpLmNwdSgpLnRvbGlzdCgpCiAgICByZXR1cm4gIlsiICsgIiwgIi5qb2luKGYie3Y6LjNmfSIgZm9yIHYgaW4gdmFsdWVzWzozXSkgKyAiXSIKCgpkZWYgX3NraWxsX3R5cGVfZnJvbV9hcmcodmFsdWU6IHN0cikgLT4gU2tpbGxUeXBlOgogICAgcmV0dXJuIFNraWxsVHlwZSh2YWx1ZSkKCgpkZWYgX21ha2VfcmVxdWVzdChza2lsbF90eXBlOiBTa2lsbFR5cGUsIHRhcmdldDogc3RyKSAtPiBTa2lsbFJlcXVlc3Q6CiAgICByZXR1cm4gU2tpbGxSZXF1ZXN0KAogICAgICAgIHJlcXVlc3RfaWQ9ZiJ7c2tpbGxfdHlwZS52YWx1ZX1fe3RhcmdldH1fe3RpbWUudGltZV9ucygpfSIsCiAgICAgICAgc2tpbGxfdHlwZT1za2lsbF90eXBlLAogICAgICAgIHNvdXJjZV9vYmplY3Q9dGFyZ2V0IGlmIHNraWxsX3R5cGUgPT0gU2tpbGxUeXBlLkdSQVNQIGVsc2UgTm9uZSwKICAgICAgICBkZXN0aW5hdGlvbl9vYmplY3Q9ImNhYmluZXQiIGlmIHNraWxsX3R5cGUgaW4gKFNraWxsVHlwZS5PUEVOX0RSQVdFUiwgU2tpbGxUeXBlLkNMT1NFX0RSQVdFUikgZWxzZSBOb25lLAogICAgKQoKCmRlZiBfcHJpbnRfbGF5b3V0X3N1bW1hcnkobGF5b3V0X3Jlc3VsdDogTGF5b3V0UmVzdWx0KSAtPiBOb25lOgogICAgcHJpbnQoCiAgICAgICAganNvbi5kdW1wcygKICAgICAgICAgICAgewogICAgICAgICAgICAgICAgImxheW91dF9zZWVkIjogbGF5b3V0X3Jlc3VsdC5zZWVkLAogICAgICAgICAgICAgICAgInJlc2V0X2luZGV4IjogbGF5b3V0X3Jlc3VsdC5yZXNldF9pbmRleCwKICAgICAgICAgICAgICAgICJ2YWxpZCI6IGxheW91dF9yZXN1bHQudmFsaWRhdGlvbi52YWxpZCwKICAgICAgICAgICAgICAgICJ2aW9sYXRpb25zIjogbGF5b3V0X3Jlc3VsdC52YWxpZGF0aW9uLnZpb2xhdGlvbnMsCiAgICAgICAgICAgICAgICAibWluaW11bV9wYWlyX2NsZWFyYW5jZSI6IGxheW91dF9yZXN1bHQudmFsaWRhdGlvbi5taW5fcGFpcl9jbGVhcmFuY2UsCiAgICAgICAgICAgICAgICAiY2FiaW5ldF9taW5feiI6IGxheW91dF9yZXN1bHQudmFsaWRhdGlvbi5jYWJpbmV0X21pbl96LAogICAgICAgICAgICAgICAgIm9iamVjdF9taW5feiI6IGxheW91dF9yZXN1bHQudmFsaWRhdGlvbi5vYmplY3RfbWluX3osCiAgICAgICAgICAgICAgICAib2JqZWN0X3Bvc2VzIjogewogICAgICAgICAgICAgICAgICAgIG5hbWU6IHsKICAgICAgICAgICAgICAgICAgICAgICAgInBvc2l0aW9uX2Jhc2UiOiBsaXN0KHBvc2UucG9zaXRpb25fYmFzZSksCiAgICAgICAgICAgICAgICAgICAgICAgICJ5YXciOiBwb3NlLnlhdywKICAgICAgICAgICAgICAgICAgICAgICAgImF0dGVtcHRzIjogcG9zZS5hdHRlbXB0cywKICAgICAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICAgICAgZm9yIG5hbWUsIHBvc2UgaW4gbGF5b3V0X3Jlc3VsdC5vYmplY3RfcG9zZXMuaXRlbXMoKQogICAgICAgICAgICAgICAgfSwKICAgICAgICAgICAgfSwKICAgICAgICAgICAgc29ydF9rZXlzPVRydWUsCiAgICAgICAgKQogICAgKQoKCmRlZiBtYWluKCk6CiAgICBpZiBhcmdzX2NsaS5udW1fZW52cyAhPSAxOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoInNraWxsX3Rlc3RfdWkgY3VycmVudGx5IHN1cHBvcnRzIC0tbnVtX2VudnMgMSBzbyBvbmUgVUkgbWFwcyB0byBvbmUgc2NlbmUuIikKCiAgICB0b3JjaC5tYW51YWxfc2VlZChhcmdzX2NsaS5zZWVkKQogICAgZW52X2NmZzogU3RhY2tFbnZDZmcgPSBwYXJzZV9lbnZfY2ZnKAogICAgICAgICJJc2FhYy1TdGFjay1DdWJlLUZyYW5rYS1JSy1BYnMtdjAiLAogICAgICAgIGRldmljZT1hcmdzX2NsaS5kZXZpY2UsCiAgICAgICAgbnVtX2VudnM9YXJnc19jbGkubnVtX2VudnMsCiAgICAgICAgdXNlX2ZhYnJpYz1ub3QgYXJnc19jbGkuZGlzYWJsZV9mYWJyaWMsCiAgICApCiAgICBlbnZfY2ZnLnNlZWQgPSBhcmdzX2NsaS5zZWVkCiAgICBpZiBnZXRhdHRyKGVudl9jZmcsICJldmVudHMiLCBOb25lKSBpcyBub3QgTm9uZSBhbmQgaGFzYXR0cihlbnZfY2ZnLmV2ZW50cywgInJhbmRvbWl6ZV9jdWJlX3Bvc2l0aW9ucyIpOgogICAgICAgIGVudl9jZmcuZXZlbnRzLnJhbmRvbWl6ZV9jdWJlX3Bvc2l0aW9ucyA9IE5vbmUKICAgIGlmIGhhc2F0dHIoZW52X2NmZy5zY2VuZSwgImNhYmluZXQiKSBhbmQgaGFzYXR0cihlbnZfY2ZnLnNjZW5lLmNhYmluZXQsICJhY3R1YXRvcnMiKToKICAgICAgICBpZiAiZHJhd2VycyIgaW4gZW52X2NmZy5zY2VuZS5jYWJpbmV0LmFjdHVhdG9yczoKICAgICAgICAgICAgZW52X2NmZy5zY2VuZS5jYWJpbmV0LmFjdHVhdG9yc1siZHJhd2VycyJdLnN0aWZmbmVzcyA9IDIwMC4wCiAgICAgICAgICAgIGVudl9jZmcuc2NlbmUuY2FiaW5ldC5hY3R1YXRvcnNbImRyYXdlcnMiXS5kYW1waW5nID0gMjAuMAogICAgaWYgaGFzYXR0cihlbnZfY2ZnLnNjZW5lLCAia25pZmUiKSBhbmQgaGFzYXR0cihlbnZfY2ZnLnNjZW5lLmtuaWZlLCAiYWN0dWF0b3JzIik6CiAgICAgICAgaWYgImJsYWRlX2xvY2siIGluIGVudl9jZmcuc2NlbmUua25pZmUuYWN0dWF0b3JzOgogICAgICAgICAgICBlbnZfY2ZnLnNjZW5lLmtuaWZlLmFjdHVhdG9yc1siYmxhZGVfbG9jayJdLnN0aWZmbmVzcyA9IDEwMC4wCiAgICAgICAgICAgIGVudl9jZmcuc2NlbmUua25pZmUuYWN0dWF0b3JzWyJibGFkZV9sb2NrIl0uZGFtcGluZyA9IDEwLjAKICAgIGVudl9jZmcudmlld2VyLmV5ZSA9ICgyLjAsIC0yLjAsIDEuNCkKICAgIGVudl9jZmcudmlld2VyLmxvb2thdCA9ICgwLjQ1LCAwLjAsIDAuMTUpCgogICAgZW52ID0gZ3ltLm1ha2UoIklzYWFjLVN0YWNrLUN1YmUtRnJhbmthLUlLLUFicy12MCIsIGNmZz1lbnZfY2ZnKQogICAgZW52LnJlc2V0KHNlZWQ9YXJnc19jbGkuc2VlZCkKCiAgICBpZiBub3QgYXJnc19jbGkuaGVhZGxlc3MgYW5kIG5vdCBhcmdzX2NsaS5kaXNhYmxlX2NvbGxpc2lvbl9kZWJ1Z192aXM6CiAgICAgICAgZW5hYmxlX2NvbGxpc2lvbl9kZWJ1Z192aXN1YWxpemF0aW9uKCkKCiAgICBwcm92aWRlciA9IFNjZW5lU3RhdGVQcm92aWRlcihlbnYpCiAgICBsYXlvdXRfbWFuYWdlciA9IFNjZW5lTGF5b3V0TWFuYWdlcihlbnY9ZW52LCBjb25maWc9U2NlbmVMYXlvdXRDb25maWcoKSwgYmFzZV9zZWVkPWFyZ3NfY2xpLnNlZWQpCiAgICBsYXlvdXRfbWFuYWdlci5jYWxpYnJhdGVfYXNzZXRfZ2VvbWV0cnkoKQogICAgcmVnaXN0cnkgPSBUYXJnZXRSZWdpc3RyeShlbnYudW53cmFwcGVkLmRldmljZSkKICAgIGV4ZWN1dG9yID0gU2tpbGxFeGVjdXRvcihyZWdpc3RyeSkKICAgIGNvbnRyb2xsZXIgPSBVSUNvbnRyb2xsZXIoKQogICAgY29udHJvbGxlci5zZWxlY3RlZF9za2lsbCA9IF9za2lsbF90eXBlX2Zyb21fYXJnKGFyZ3NfY2xpLnNraWxsKQogICAgY29udHJvbGxlci5zZWxlY3RlZF90YXJnZXQgPSBhcmdzX2NsaS50YXJnZXQKICAgIHZpc3VhbGl6ZXIgPSBEZWJ1Z1Zpc3VhbGl6ZXIoZW5hYmxlZD1ub3QgYXJnc19jbGkuaGVhZGxlc3Mgb3IgYXJnc19jbGkuc2hvd19hZmZvcmRhbmNlX2RlYnVnKQogICAgbGF5b3V0X3Zpc3VhbGl6ZXIgPSBOb25lCiAgICBpZiBub3QgYXJnc19jbGkuaGVhZGxlc3MgYW5kIGFyZ3NfY2xpLnNob3dfbGF5b3V0X2RlYnVnOgogICAgICAgIGZyb20gc2tpbGxfcnVudGltZS5sYXlvdXRfZGVidWdfdmlzdWFsaXplciBpbXBvcnQgTGF5b3V0RGVidWdWaXN1YWxpemVyCgogICAgICAgIGxheW91dF92aXN1YWxpemVyID0gTGF5b3V0RGVidWdWaXN1YWxpemVyKGVuYWJsZWQ9VHJ1ZSkKICAgIHdpbmRvdyA9IE5vbmUgaWYgYXJnc19jbGkuaGVhZGxlc3MgZWxzZSBTa2lsbFRlc3RXaW5kb3coY29udHJvbGxlciwgZXhlY3V0b3IsIHJlZ2lzdHJ5KQoKICAgIHNpbV9kdCA9IGVudl9jZmcuc2ltLmR0ICogZW52X2NmZy5kZWNpbWF0aW9uCiAgICBzaW1fdGltZSA9IDAuMAogICAgcHJvdmlkZXIuc2V0X3NpbV90aW1lKHNpbV90aW1lKQogICAgc3RhdGUgPSBwcm92aWRlci5nZXRfc3RhdGUoKQogICAgYWN0aW9ucyA9IHByb3ZpZGVyLmhvbGRfYWN0aW9uKHN0YXRlLCAxLjApCiAgICBsYXlvdXRfcmVzdWx0ID0gbGF5b3V0X21hbmFnZXIucmVzZXRfbGF5b3V0KHJlc2V0X2luZGV4PTAsIGhvbGRfYWN0aW9uPWFjdGlvbnMpCiAgICBpZiBsYXlvdXRfdmlzdWFsaXplciBpcyBub3QgTm9uZToKICAgICAgICBsYXlvdXRfdmlzdWFsaXplci51cGRhdGUobGF5b3V0X21hbmFnZXIsIGxheW91dF9yZXN1bHQpCgogICAgaWYgYXJnc19jbGkuYXV0b19zdGFydDoKICAgICAgICBjb250cm9sbGVyLnJlcXVlc3Rfc3RhcnQoY29udHJvbGxlci5zZWxlY3RlZF9za2lsbCwgY29udHJvbGxlci5zZWxlY3RlZF90YXJnZXQpCgogICAgaWYgYXJnc19jbGkubGF5b3V0X29ubHk6CiAgICAgICAgZm9yIHRyaWFsIGluIHJhbmdlKGFyZ3NfY2xpLmxheW91dF90cmlhbHMpOgogICAgICAgICAgICBlbnYucmVzZXQoc2VlZD1hcmdzX2NsaS5zZWVkKQogICAgICAgICAgICBwcm92aWRlci5zZXRfc2ltX3RpbWUoMC4wKQogICAgICAgICAgICBzdGF0ZSA9IHByb3ZpZGVyLmdldF9zdGF0ZSgpCiAgICAgICAgICAgIGhvbGRfYWN0aW9uID0gcHJvdmlkZXIuaG9sZF9hY3Rpb24oc3RhdGUsIDEuMCkKICAgICAgICAgICAgbGF5b3V0X3Jlc3VsdCA9IGxheW91dF9tYW5hZ2VyLnJlc2V0X2xheW91dChyZXNldF9pbmRleD10cmlhbCwgaG9sZF9hY3Rpb249aG9sZF9hY3Rpb24pCiAgICAgICAgICAgIGlmIGxheW91dF92aXN1YWxpemVyIGlzIG5vdCBOb25lOgogICAgICAgICAgICAgICAgbGF5b3V0X3Zpc3VhbGl6ZXIudXBkYXRlKGxheW91dF9tYW5hZ2VyLCBsYXlvdXRfcmVzdWx0KQogICAgICAgICAgICBfcHJpbnRfbGF5b3V0X3N1bW1hcnkobGF5b3V0X3Jlc3VsdCkKICAgICAgICAgICAgaWYgbm90IGxheW91dF9yZXN1bHQudmFsaWRhdGlvbi52YWxpZDoKICAgICAgICAgICAgICAgIGVudi5jbG9zZSgpCiAgICAgICAgICAgICAgICByYWlzZSBTeXN0ZW1FeGl0KDEpCiAgICAgICAgZW52LmNsb3NlKCkKICAgICAgICByZXR1cm4KCiAgICBzdGVwX2NvdW50ID0gMAogICAgbGF5b3V0X3Jlc2V0X2luZGV4ID0gMAogICAgd2hpbGUgc2ltdWxhdGlvbl9hcHAuaXNfcnVubmluZygpOgogICAgICAgIHdpdGggdG9yY2guaW5mZXJlbmNlX21vZGUoKToKICAgICAgICAgICAgcHJvdmlkZXIuc2V0X3NpbV90aW1lKHNpbV90aW1lKQogICAgICAgICAgICBzdGF0ZSA9IHByb3ZpZGVyLmdldF9zdGF0ZSgpCiAgICAgICAgICAgIHBlbmRpbmcgPSBjb250cm9sbGVyLnBvcCgpCiAgICAgICAgICAgIGlmIHBlbmRpbmcgaXMgbm90IE5vbmU6CiAgICAgICAgICAgICAgICBpZiBwZW5kaW5nLmNvbW1hbmQgPT0gInN0YXJ0IiBhbmQgcGVuZGluZy5yZXF1ZXN0IGlzIG5vdCBOb25lOgogICAgICAgICAgICAgICAgICAgIGV4ZWN1dG9yLnN0YXJ0KHBlbmRpbmcucmVxdWVzdCwgc3RhdGUpCiAgICAgICAgICAgICAgICBlbGlmIHBlbmRpbmcuY29tbWFuZCA9PSAic3RvcCI6CiAgICAgICAgICAgICAgICAgICAgY29tbWFuZCA9IGV4ZWN1dG9yLnN0b3Aoc3RhdGUpCiAgICAgICAgICAgICAgICAgICAgYWN0aW9ucyA9IHByb3ZpZGVyLm1ha2VfYWN0aW9uKGNvbW1hbmQudGNwX3Bvc2VfdywgY29tbWFuZC5ncmlwcGVyX2NvbW1hbmQpCiAgICAgICAgICAgICAgICBlbGlmIHBlbmRpbmcuY29tbWFuZCA9PSAicmVzZXQiOgogICAgICAgICAgICAgICAgICAgIGV4ZWN1dG9yLnN0b3Aoc3RhdGUpCiAgICAgICAgICAgICAgICAgICAgZW52LnJlc2V0KHNlZWQ9YXJnc19jbGkuc2VlZCkKICAgICAgICAgICAgICAgICAgICBleGVjdXRvci5yZXNldCgpCiAgICAgICAgICAgICAgICAgICAgc3RhdGUgPSBwcm92aWRlci5nZXRfc3RhdGUoKQogICAgICAgICAgICAgICAgICAgIGFjdGlvbnMgPSBwcm92aWRlci5ob2xkX2FjdGlvbihzdGF0ZSwgMS4wKQogICAgICAgICAgICAgICAgICAgIGxheW91dF9yZXNldF9pbmRleCArPSAxCiAgICAgICAgICAgICAgICAgICAgbGF5b3V0X3Jlc3VsdCA9IGxheW91dF9tYW5hZ2VyLnJlc2V0X2xheW91dChyZXNldF9pbmRleD1sYXlvdXRfcmVzZXRfaW5kZXgsIGhvbGRfYWN0aW9uPWFjdGlvbnMpCiAgICAgICAgICAgICAgICAgICAgaWYgbGF5b3V0X3Zpc3VhbGl6ZXIgaXMgbm90IE5vbmU6CiAgICAgICAgICAgICAgICAgICAgICAgIGxheW91dF92aXN1YWxpemVyLnVwZGF0ZShsYXlvdXRfbWFuYWdlciwgbGF5b3V0X3Jlc3VsdCkKCiAgICAgICAgICAgIGNvbW1hbmQgPSBleGVjdXRvci5zdGVwKHN0YXRlLCBzaW1fZHQpCiAgICAgICAgICAgIGFjdGlvbnMgPSBwcm92aWRlci5tYWtlX2FjdGlvbihjb21tYW5kLnRjcF9wb3NlX3csIGNvbW1hbmQuZ3JpcHBlcl9jb21tYW5kKQogICAgICAgICAgICBlbnYuc3RlcChhY3Rpb25zKQoKICAgICAgICAgICAgX3VwZGF0ZV9kZWJ1Z192aXN1YWxzKHZpc3VhbGl6ZXIsIHN0YXRlLCBleGVjdXRvcikKICAgICAgICAgICAgaWYgd2luZG93IGlzIG5vdCBOb25lOgogICAgICAgICAgICAgICAgd2luZG93LnVwZGF0ZShzdGF0ZSwgZXhlY3V0b3IsIGxheW91dF9yZXN1bHQpCgogICAgICAgICAgICBzaW1fdGltZSArPSBzaW1fZHQKICAgICAgICAgICAgc3RlcF9jb3VudCArPSAxCiAgICAgICAgICAgIGlmIGFyZ3NfY2xpLm1heF9zdGVwcyA+IDAgYW5kIHN0ZXBfY291bnQgPj0gYXJnc19jbGkubWF4X3N0ZXBzOgogICAgICAgICAgICAgICAgaWYgZXhlY3V0b3Iuc3RhdHVzID09IEV4ZWN1dGlvblN0YXR1cy5SVU5OSU5HOgogICAgICAgICAgICAgICAgICAgIGV4ZWN1dG9yLnN0b3AocHJvdmlkZXIuZ2V0X3N0YXRlKCkpCiAgICAgICAgICAgICAgICBicmVhawogICAgICAgIGlmIGFyZ3NfY2xpLmhlYWRsZXNzIGFuZCBhcmdzX2NsaS5hdXRvX3N0YXJ0IGFuZCBleGVjdXRvci5zdGF0dXMgaW4gewogICAgICAgICAgICBFeGVjdXRpb25TdGF0dXMuU1VDQ0VFREVELAogICAgICAgICAgICBFeGVjdXRpb25TdGF0dXMuRkFJTEVELAogICAgICAgICAgICBFeGVjdXRpb25TdGF0dXMuTk9UX0lNUExFTUVOVEVELAogICAgICAgICAgICBFeGVjdXRpb25TdGF0dXMuU1RPUFBFRCwKICAgICAgICB9OgogICAgICAgICAgICBicmVhawoKICAgIGVudi5jbG9zZSgpCgoKZGVmIF91cGRhdGVfZGVidWdfdmlzdWFscyh2aXN1YWxpemVyOiBEZWJ1Z1Zpc3VhbGl6ZXIsIHN0YXRlLCBleGVjdXRvcjogU2tpbGxFeGVjdXRvcik6CiAgICB2aXN1YWxpemVyLnVwZGF0ZV9wb3NlKCJjdXJyZW50X3RjcCIsIHBvc2VfdGVuc29yKHN0YXRlLnJvYm90LnRjcF9wb3NlKSkKICAgIGFjdGl2ZSA9IGV4ZWN1dG9yLmFjdGl2ZV9za2lsbAogICAgcnVudGltZSA9IGdldGF0dHIoYWN0aXZlLCAicnVudGltZSIsIE5vbmUpCiAgICBpZiBydW50aW1lIGlzIE5vbmU6CiAgICAgICAgcmV0dXJuCiAgICBwbGFuID0gcnVudGltZS5maWx0ZXJlZF9wbGFuCiAgICBpZiBwbGFuIGlzIG5vdCBOb25lOgogICAgICAgIHZpc3VhbGl6ZXIudXBkYXRlX3Bvc2UoInRhcmdldF9vYmplY3QiLCBwb3NlX3RlbnNvcihwbGFuLnRhcmdldF9wb3NlKSkKICAgICAgICB2aXN1YWxpemVyLnVwZGF0ZV9wb3NlKCJncmFzcF9mcmFtZSIsIHBvc2VfdGVuc29yKHBsYW4uZ3Jhc3BfcG9zZSkpCiAgICAgICAgdmlzdWFsaXplci51cGRhdGVfcG9zZSgicHJlX2dyYXNwX2ZyYW1lIiwgcG9zZV90ZW5zb3IocGxhbi5wcmVfZ3Jhc3BfcG9zZSkpCiAgICB2aXN1YWxpemVyLnVwZGF0ZV9wb3NlKCJhY3RpdmVfY29tbWFuZCIsIHBvc2VfdGVuc29yKHJ1bnRpbWUubGFzdF9jb21tYW5kX3Bvc2UpKQogICAgdmlzdWFsaXplci51cGRhdGVfcG9zZSgibG9ja2VkX2xpZnRfZnJhbWUiLCBwb3NlX3RlbnNvcihydW50aW1lLmxvY2tlZF9saWZ0X3Bvc2UpKQoKCmlmIF9fbmFtZV9fID09ICJfX21haW5fXyI6CiAgICBtYWluKCkKICAgIHNpbXVsYXRpb25fYXBwLmNsb3NlKCkK
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers.
+# SPDX-License-Identifier: BSD-3-Clause
+
+"""Generic skill-test entry for the modified Franka stack scene.
+
+GUI:
+    ./isaaclab.sh -p scripts/environments/state_machine/skill_test_ui.py --num_envs 1
+
+Headless:
+    ./isaaclab.sh -p scripts/environments/state_machine/skill_test_ui.py \
+        --headless --num_envs 1 --auto_start --skill grasp --target cube_1 --max_steps 1200
+"""
+
+from __future__ import annotations
+
+"""Launch Omniverse Toolkit first."""
+
+import argparse
+import json
+import time
+
+from isaaclab.app import AppLauncher
+
+parser = argparse.ArgumentParser(description="Isaac Sim native UI for structured Franka skills.")
+parser.add_argument("--disable_fabric", action="store_true", default=False, help="Disable fabric and use USD I/O.")
+parser.add_argument("--disable_collision_debug_vis", action="store_true", default=False, help="Disable collider overlays.")
+parser.add_argument("--show_affordance_debug", action="store_true", default=False, help="Show affordance debug frames.")
+parser.add_argument("--auto_start", action="store_true", default=False, help="Start the selected skill automatically.")
+parser.add_argument("--skill", default="grasp", choices=["grasp", "place", "open_drawer", "close_drawer"], help="Skill.")
+parser.add_argument(
+    "--target", default="cube_2", choices=["cube_1", "cube_2", "cube_3", "knife"], help="Grasp target."
+)
+parser.add_argument("--max_steps", type=int, default=0, help="Maximum sim steps before exit. 0 means no limit.")
+parser.add_argument("--seed", type=int, default=1, help="Deterministic skill-test seed.")
+parser.add_argument("--randomize_test_pose", action="store_true", default=False, help="Apply small test pose perturbations.")
+parser.add_argument("--layout_only", action="store_true", default=False, help="Only sample and validate layout.")
+parser.add_argument("--layout_trials", type=int, default=1, help="Number of layout-only trials to run.")
+parser.add_argument("--show_layout_debug", action="store_true", default=False, help="Show layout debug overlays.")
+parser.add_argument("--num_envs", type=int, default=1, help="Number of environments to simulate. Skill UI supports 1.")
+AppLauncher.add_app_launcher_args(parser)
+args_cli = parser.parse_args()
+
+app_launcher = AppLauncher(headless=args_cli.headless)
+simulation_app = app_launcher.app
+
+"""Rest everything else."""
+
+import carb
+import gymnasium as gym
+import torch
+
+import isaaclab_tasks  # noqa: F401
+from isaaclab_tasks.manager_based.manipulation.stack.stack_env_cfg import StackEnvCfg
+from isaaclab_tasks.utils.parse_cfg import parse_env_cfg
+
+from skill_runtime.base_skill import pose_tensor
+from skill_runtime.debug_visualizer import DebugVisualizer
+from skill_runtime.scene_layout import LayoutResult, SceneLayoutConfig, SceneLayoutManager
+from skill_runtime.scene_state_provider import SceneStateProvider
+from skill_runtime.skill_executor import SkillExecutor
+from skill_runtime.skill_request import SkillRequest
+from skill_runtime.skill_types import ExecutionStatus, SkillType
+from skill_runtime.target_registry import TargetRegistry
+from skill_runtime.ui_controller import UIController
+
+
+SKILL_LABELS = [
+    ("Grasp", SkillType.GRASP),
+    ("Place", SkillType.PLACE),
+    ("Open Drawer", SkillType.OPEN_DRAWER),
+    ("Close Drawer", SkillType.CLOSE_DRAWER),
+]
+
+
+def enable_collision_debug_visualization():
+    settings = carb.settings.get_settings()
+    settings.set_int("/persistent/physics/visualizationDisplayColliders", 2)
+    settings.set_bool("/persistent/physics/visualizationDisplayColliderNormals", False)
+
+
+class SkillTestWindow:
+    def __init__(self, controller: UIController, executor: SkillExecutor, registry: TargetRegistry):
+        import omni.ui as ui
+
+        self.ui = ui
+        self.controller = controller
+        self.executor = executor
+        self.registry = registry
+        self.target_keys = [key for key, _ in registry.display_targets()]
+        self.status_labels = {}
+        self.window = ui.Window("Franka Skill Test", width=420, height=520)
+        with self.window.frame:
+            with ui.VStack(spacing=6, height=0):
+                ui.Label("Skill")
+                self.skill_model = ui.ComboBox(0, *[label for label, _ in SKILL_LABELS]).model
+                self.skill_model.add_item_changed_fn(self._on_skill_changed)
+                ui.Label("Grasp target")
+                self.target_model = ui.ComboBox(1, *[label for _, label in registry.display_targets()]).model
+                self.target_model.add_item_changed_fn(self._on_target_changed)
+                with ui.HStack(spacing=6):
+                    ui.Button("Start", clicked_fn=self._start)
+                    ui.Button("Stop", clicked_fn=self.controller.request_stop)
+                    ui.Button("Reset", clicked_fn=self.controller.request_reset)
+                for key in (
+                    "selected_skill",
+                    "selected_target",
+                    "runtime_status",
+                    "state",
+                    "elapsed",
+                    "position_error",
+                    "orientation_error",
+                    "gripper_width",
+                    "layout_seed",
+                    "reset_index",
+                    "layout_valid",
+                    "cabinet_root_pose",
+                    "cabinet_min_z",
+                    "cube_1_pose",
+                    "cube_2_pose",
+                    "cube_3_pose",
+                    "knife_pose",
+                    "minimum_pair_clearance",
+                    "target_pose",
+                    "last_failure",
+                    "last_result",
+                ):
+                    self.status_labels[key] = ui.Label(f"{key}:")
+
+    def _on_skill_changed(self, model, item):
+        index = model.get_item_value_model().as_int
+        self.controller.selected_skill = SKILL_LABELS[index][1]
+
+    def _on_target_changed(self, model, item):
+        index = model.get_item_value_model().as_int
+        self.controller.selected_target = self.target_keys[index]
+
+    def _start(self):
+        self.controller.request_start()
+
+    def update(self, state, executor: SkillExecutor, layout_result: LayoutResult | None):
+        result = executor.last_result
+        active = executor.active_skill
+        plan = getattr(getattr(active, "runtime", None), "filtered_plan", None)
+        target_pose = plan.target_pose.as_pose_tensor() if plan else None
+        elapsed = 0.0
+        if active is not None:
+            elapsed = max(0.0, state.sim_time - getattr(active.runtime, "start_time", state.sim_time))
+        values = {
+            "selected_skill": self.controller.selected_skill.value,
+            "selected_target": self.controller.selected_target,
+            "runtime_status": executor.status.value,
+            "state": executor.current_state_name,
+            "elapsed": f"{elapsed:.2f}",
+            "position_error": str(getattr(getattr(active, "runtime", None), "final_error_pos", None)),
+            "orientation_error": str(getattr(getattr(active, "runtime", None), "final_error_ori", None)),
+            "gripper_width": f"{state.robot.gripper_width:.5f}",
+            "layout_seed": None if layout_result is None else layout_result.seed,
+            "reset_index": None if layout_result is None else layout_result.reset_index,
+            "layout_valid": None if layout_result is None else layout_result.validation.valid,
+            "cabinet_root_pose": None if layout_result is None else layout_result.object_poses.get("cabinet"),
+            "cabinet_min_z": None if layout_result is None else layout_result.validation.cabinet_min_z,
+            "cube_1_pose": None if layout_result is None else layout_result.object_poses.get("cube_1"),
+            "cube_2_pose": None if layout_result is None else layout_result.object_poses.get("cube_2"),
+            "cube_3_pose": None if layout_result is None else layout_result.object_poses.get("cube_3"),
+            "knife_pose": None if layout_result is None else layout_result.object_poses.get("knife"),
+            "minimum_pair_clearance": None if layout_result is None else layout_result.validation.min_pair_clearance,
+            "target_pose": _short_pose(target_pose),
+            "last_failure": None if result is None else result.failure_reason,
+            "last_result": None if result is None else result.final_status.value,
+        }
+        for key, label in self.status_labels.items():
+            label.text = f"{key}: {values[key]}"
+
+
+def _short_pose(pose: torch.Tensor | None) -> str:
+    if pose is None:
+        return "None"
+    values = pose.detach().cpu().tolist()
+    return "[" + ", ".join(f"{v:.3f}" for v in values[:3]) + "]"
+
+
+def _skill_type_from_arg(value: str) -> SkillType:
+    return SkillType(value)
+
+
+def _make_request(skill_type: SkillType, target: str) -> SkillRequest:
+    return SkillRequest(
+        request_id=f"{skill_type.value}_{target}_{time.time_ns()}",
+        skill_type=skill_type,
+        source_object=target if skill_type == SkillType.GRASP else None,
+        destination_object="cabinet" if skill_type in (SkillType.OPEN_DRAWER, SkillType.CLOSE_DRAWER) else None,
+    )
+
+
+def _print_layout_summary(layout_result: LayoutResult) -> None:
+    print(
+        json.dumps(
+            {
+                "layout_seed": layout_result.seed,
+                "reset_index": layout_result.reset_index,
+                "valid": layout_result.validation.valid,
+                "violations": layout_result.validation.violations,
+                "minimum_pair_clearance": layout_result.validation.min_pair_clearance,
+                "cabinet_min_z": layout_result.validation.cabinet_min_z,
+                "object_min_z": layout_result.validation.object_min_z,
+                "object_poses": {
+                    name: {
+                        "position_base": list(pose.position_base),
+                        "yaw": pose.yaw,
+                        "attempts": pose.attempts,
+                    }
+                    for name, pose in layout_result.object_poses.items()
+                },
+            },
+            sort_keys=True,
+        )
+    )
+
+
+def main():
+    if args_cli.num_envs != 1:
+        raise ValueError("skill_test_ui currently supports --num_envs 1 so one UI maps to one scene.")
+
+    torch.manual_seed(args_cli.seed)
+    env_cfg: StackEnvCfg = parse_env_cfg(
+        "Isaac-Stack-Cube-Franka-IK-Abs-v0",
+        device=args_cli.device,
+        num_envs=args_cli.num_envs,
+        use_fabric=not args_cli.disable_fabric,
+    )
+    env_cfg.seed = args_cli.seed
+    if getattr(env_cfg, "events", None) is not None and hasattr(env_cfg.events, "randomize_cube_positions"):
+        env_cfg.events.randomize_cube_positions = None
+    if hasattr(env_cfg.scene, "cabinet") and hasattr(env_cfg.scene.cabinet, "actuators"):
+        if "drawers" in env_cfg.scene.cabinet.actuators:
+            env_cfg.scene.cabinet.actuators["drawers"].stiffness = 200.0
+            env_cfg.scene.cabinet.actuators["drawers"].damping = 20.0
+    if hasattr(env_cfg.scene, "knife") and hasattr(env_cfg.scene.knife, "actuators"):
+        if "blade_lock" in env_cfg.scene.knife.actuators:
+            env_cfg.scene.knife.actuators["blade_lock"].stiffness = 100.0
+            env_cfg.scene.knife.actuators["blade_lock"].damping = 10.0
+    env_cfg.viewer.eye = (2.0, -2.0, 1.4)
+    env_cfg.viewer.lookat = (0.45, 0.0, 0.15)
+
+    env = gym.make("Isaac-Stack-Cube-Franka-IK-Abs-v0", cfg=env_cfg)
+    env.reset(seed=args_cli.seed)
+
+    if not args_cli.headless and not args_cli.disable_collision_debug_vis:
+        enable_collision_debug_visualization()
+
+    provider = SceneStateProvider(env)
+    layout_manager = SceneLayoutManager(env=env, config=SceneLayoutConfig(), base_seed=args_cli.seed)
+    layout_manager.calibrate_asset_geometry()
+    registry = TargetRegistry(env.unwrapped.device)
+    executor = SkillExecutor(registry)
+    controller = UIController()
+    controller.selected_skill = _skill_type_from_arg(args_cli.skill)
+    controller.selected_target = args_cli.target
+    visualizer = DebugVisualizer(enabled=not args_cli.headless or args_cli.show_affordance_debug)
+    layout_visualizer = None
+    if not args_cli.headless and args_cli.show_layout_debug:
+        from skill_runtime.layout_debug_visualizer import LayoutDebugVisualizer
+
+        layout_visualizer = LayoutDebugVisualizer(enabled=True)
+    window = None if args_cli.headless else SkillTestWindow(controller, executor, registry)
+
+    sim_dt = env_cfg.sim.dt * env_cfg.decimation
+    sim_time = 0.0
+    provider.set_sim_time(sim_time)
+    state = provider.get_state()
+    actions = provider.hold_action(state, 1.0)
+    layout_result = layout_manager.reset_layout(reset_index=0, hold_action=actions)
+    if layout_visualizer is not None:
+        layout_visualizer.update(layout_manager, layout_result)
+
+    if args_cli.auto_start:
+        controller.request_start(controller.selected_skill, controller.selected_target)
+
+    if args_cli.layout_only:
+        for trial in range(args_cli.layout_trials):
+            env.reset(seed=args_cli.seed)
+            provider.set_sim_time(0.0)
+            state = provider.get_state()
+            hold_action = provider.hold_action(state, 1.0)
+            layout_result = layout_manager.reset_layout(reset_index=trial, hold_action=hold_action)
+            if layout_visualizer is not None:
+                layout_visualizer.update(layout_manager, layout_result)
+            _print_layout_summary(layout_result)
+            if not layout_result.validation.valid:
+                env.close()
+                raise SystemExit(1)
+        env.close()
+        return
+
+    step_count = 0
+    layout_reset_index = 0
+    while simulation_app.is_running():
+        with torch.inference_mode():
+            provider.set_sim_time(sim_time)
+            state = provider.get_state()
+            pending = controller.pop()
+            if pending is not None:
+                if pending.command == "start" and pending.request is not None:
+                    executor.start(pending.request, state)
+                elif pending.command == "stop":
+                    command = executor.stop(state)
+                    actions = provider.make_action(command.tcp_pose_w, command.gripper_command)
+                elif pending.command == "reset":
+                    executor.stop(state)
+                    env.reset(seed=args_cli.seed)
+                    executor.reset()
+                    state = provider.get_state()
+                    actions = provider.hold_action(state, 1.0)
+                    layout_reset_index += 1
+                    layout_result = layout_manager.reset_layout(reset_index=layout_reset_index, hold_action=actions)
+                    if layout_visualizer is not None:
+                        layout_visualizer.update(layout_manager, layout_result)
+
+            command = executor.step(state, sim_dt)
+            actions = provider.make_action(command.tcp_pose_w, command.gripper_command)
+            env.step(actions)
+
+            _update_debug_visuals(visualizer, state, executor)
+            if window is not None:
+                window.update(state, executor, layout_result)
+
+            sim_time += sim_dt
+            step_count += 1
+            if args_cli.max_steps > 0 and step_count >= args_cli.max_steps:
+                if executor.status == ExecutionStatus.RUNNING:
+                    executor.stop(provider.get_state())
+                break
+            if args_cli.headless and args_cli.auto_start and executor.status in {
+                ExecutionStatus.SUCCEEDED,
+                ExecutionStatus.FAILED,
+                ExecutionStatus.NOT_IMPLEMENTED,
+                ExecutionStatus.STOPPED,
+            }:
+                break
+
+    env.close()
+
+
+def _update_debug_visuals(visualizer: DebugVisualizer, state, executor: SkillExecutor):
+    visualizer.update_pose("current_tcp", pose_tensor(state.robot.tcp_pose))
+    active = executor.active_skill
+    runtime = getattr(active, "runtime", None)
+    if runtime is None:
+        return
+    plan = runtime.filtered_plan
+    if plan is not None:
+        visualizer.update_pose("target_object", pose_tensor(plan.target_pose))
+        visualizer.update_pose("grasp_frame", pose_tensor(plan.grasp_pose))
+        visualizer.update_pose("pre_grasp_frame", pose_tensor(plan.pre_grasp_pose))
+    visualizer.update_pose("active_command", pose_tensor(runtime.last_command_pose))
+    visualizer.update_pose("locked_lift_frame", pose_tensor(runtime.locked_lift_pose))
+
+
+if __name__ == "__main__":
+    main()
+    simulation_app.close()
