@@ -61,6 +61,13 @@ class SkillExecutor:
         return self.status_text
 
     def start(self, request: SkillRequest, state: SceneState) -> SkillResult | None:
+        if request.skill_type in (SkillType.OPEN_DRAWER, SkillType.CLOSE_DRAWER) and self.held_object is not None:
+            return self._make_immediate_failure(
+                request,
+                FailureReason.RELEASE_HELD_OBJECT_FIRST,
+                "Place or release the held object before operating the drawer.",
+            )
+
         if self.active_skill is not None:
             self._pause_active_skill(state)
 
@@ -90,6 +97,10 @@ class SkillExecutor:
             return None
         elif request.skill_type in (SkillType.OPEN_DRAWER, SkillType.CLOSE_DRAWER):
             self.active_skill = DrawerSkill(request)
+            self.active_skill.start(state)
+            self.status = self.active_skill.status
+            self.status_text = self.status.value
+            return None
         else:
             self.active_skill = None
         self.status = ExecutionStatus.NOT_IMPLEMENTED

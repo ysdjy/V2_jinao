@@ -78,6 +78,10 @@ SKILL_LABELS = [
     ("Close Drawer", SkillType.CLOSE_DRAWER),
 ]
 
+DRAWER_TARGETS = [
+    ("Bottom Drawer", "bottom_drawer"),
+]
+
 DEFAULT_PLACE_POINTS = {
     "point_a": [0.42, 0.10, 0.00],
     "point_b": [0.55, 0.10, 0.00],
@@ -110,6 +114,8 @@ class SkillTestWindow:
         self.executor = executor
         self.registry = registry
         self.target_keys = [key for key, _ in registry.display_targets()]
+        self.drawer_target_keys = [key for _, key in DRAWER_TARGETS]
+        self.selected_drawer = self.drawer_target_keys[0]
         self.place_point_keys = list(DEFAULT_PLACE_POINTS.keys())
         self.place_points = {key: list(value) for key, value in DEFAULT_PLACE_POINTS.items()}
         self.selected_place_point = "point_a"
@@ -124,6 +130,9 @@ class SkillTestWindow:
                 ui.Label("Grasp target")
                 self.target_model = ui.ComboBox(1, *[label for _, label in registry.display_targets()]).model
                 self.target_model.add_item_changed_fn(self._on_target_changed)
+                ui.Label("Drawer target")
+                self.drawer_model = ui.ComboBox(0, *[label for label, _ in DRAWER_TARGETS]).model
+                self.drawer_model.add_item_changed_fn(self._on_drawer_changed)
                 with ui.HStack(spacing=6):
                     ui.Button("Start", clicked_fn=self._start)
                     ui.Button("Stop", clicked_fn=self.controller.request_stop)
@@ -159,6 +168,7 @@ class SkillTestWindow:
                 for key in (
                     "selected_skill",
                     "selected_target",
+                    "selected_drawer",
                     "selected_place_point",
                     "place_point_x",
                     "place_point_y",
@@ -185,6 +195,8 @@ class SkillTestWindow:
                     "knife_pose",
                     "minimum_pair_clearance",
                     "target_pose",
+                    "drawer_joint_position",
+                    "handle_pose",
                     "last_failure",
                     "last_result",
                 ):
@@ -197,6 +209,10 @@ class SkillTestWindow:
     def _on_target_changed(self, model, item):
         index = model.get_item_value_model().as_int
         self.controller.selected_target = self.target_keys[index]
+
+    def _on_drawer_changed(self, model, item):
+        index = model.get_item_value_model().as_int
+        self.selected_drawer = self.drawer_target_keys[index]
 
     def _on_place_point_changed(self, model, item):
         index = model.get_item_value_model().as_int
@@ -234,13 +250,23 @@ class SkillTestWindow:
                 )
             )
             return
-        self.controller.queue_request(_make_request(self.controller.selected_skill, self.controller.selected_target))
+        target = self.selected_drawer if self.controller.selected_skill in (
+            SkillType.OPEN_DRAWER,
+            SkillType.CLOSE_DRAWER,
+        ) else self.controller.selected_target
+        self.controller.queue_request(_make_request(self.controller.selected_skill, target))
 
     def update(self, state, executor: SkillExecutor, layout_result: SimpleLayoutResult | None):
         result = executor.last_result
         active = executor.active_skill
         plan = getattr(getattr(active, "runtime", None), "filtered_plan", None)
-        target_pose = plan.target_pose.as_pose_tensor() if plan else None
+        target_pose_state = getattr(plan, "target_pose", None) or getattr(plan, "handle_pose", None)
+        target_pose = target_pose_state.as_pose_tensor() if target_pose_state is not None else None
+        handle_pose_state = getattr(plan, "handle_pose", None)
+        drawer_joint_position = None
+        cabinet = state.objects.get("cabinet")
+        if cabinet is not None:
+            drawer_joint_position = cabinet.joint_pos.get("joint_0")
         elapsed = 0.0
         if active is not None:
             elapsed = max(0.0, state.sim_time - getattr(active.runtime, "start_time", state.sim_time))
@@ -250,6 +276,7 @@ class SkillTestWindow:
         values = {
             "selected_skill": self.controller.selected_skill.value,
             "selected_target": self.controller.selected_target,
+            "selected_drawer": self.selected_drawer,
             "selected_place_point": self.selected_place_point,
             "place_point_x": f"{point[0]:.3f}",
             "place_point_y": f"{point[1]:.3f}",
@@ -276,6 +303,8 @@ class SkillTestWindow:
             "knife_pose": None if layout_result is None else layout_result.object_poses.get("knife"),
             "minimum_pair_clearance": None,
             "target_pose": _short_pose(target_pose),
+            "drawer_joint_position": None if drawer_joint_position is None else f"{drawer_joint_position:.5f}",
+            "handle_pose": _short_pose(handle_pose_state.as_pose_tensor() if handle_pose_state is not None else None),
             "last_failure": None if result is None else result.failure_reason,
             "last_result": None if result is None else result.final_status.value,
         }
@@ -315,6 +344,18 @@ def _make_request(
             parameters={
                 "target_frame": "env_local",
                 "target_surface_xyz": [selected_xyz[0], selected_xyz[1], selected_xyz[2]],
+            },
+        )
+    if skill_type in (SkillType.OPEN_DRAWER, SkillType.CLOSE_DRAWER):
+        return SkillRequest(
+            request_id=f"{skill_type.value}_{target}_{time.time_ns()}",
+            skill_type=skill_type,
+            source_object=None,
+            destination_type="drawer",
+            destination_object=target,
+            parameters={
+                "drawer_link": "link_1",
+                "drawer_joint": "joint_0",
             },
         )
     return SkillRequest(
@@ -362,8 +403,8 @@ def main():
         env_cfg.events.randomize_cube_positions = None
     if hasattr(env_cfg.scene, "cabinet") and hasattr(env_cfg.scene.cabinet, "actuators"):
         if "drawers" in env_cfg.scene.cabinet.actuators:
-            env_cfg.scene.cabinet.actuators["drawers"].stiffness = 200.0
-            env_cfg.scene.cabinet.actuators["drawers"].damping = 20.0
+            env_cfg.scene.cabinet.actuators["drawers"].stiffness = 0.0
+            env_cfg.scene.cabinet.actuators["drawers"].damping = 2.0
     if hasattr(env_cfg.scene, "knife") and hasattr(env_cfg.scene.knife, "actuators"):
         if "blade_lock" in env_cfg.scene.knife.actuators:
             env_cfg.scene.knife.actuators["blade_lock"].stiffness = 100.0
@@ -403,7 +444,11 @@ def main():
     _settle_layout(env, provider)
 
     if args_cli.auto_start:
-        controller.queue_request(_make_request(controller.selected_skill, controller.selected_target))
+        target = "bottom_drawer" if controller.selected_skill in (
+            SkillType.OPEN_DRAWER,
+            SkillType.CLOSE_DRAWER,
+        ) else controller.selected_target
+        controller.queue_request(_make_request(controller.selected_skill, target))
 
     step_count = 0
     layout_reset_index = 0
@@ -495,6 +540,12 @@ def _update_debug_visuals(
     runtime = getattr(active, "runtime", None)
     if runtime is None:
         return
+    plan = getattr(runtime, "filtered_plan", None)
+    if plan is not None and hasattr(plan, "handle_pose"):
+        visualizer.update_pose("drawer_handle", pose_tensor(plan.handle_pose))
+        visualizer.update_pose("drawer_pre_target", pose_tensor(plan.pre_handle_pose))
+        action_pose = plan.push_target_pose if getattr(active, "request", None) and active.request.skill_type == SkillType.CLOSE_DRAWER else plan.pull_pose
+        visualizer.update_pose("drawer_action_target", pose_tensor(action_pose))
     visualizer.update_pose("current_stage_target", pose_tensor(runtime.last_command_pose), use_coordinate_arrows=True)
 
 
