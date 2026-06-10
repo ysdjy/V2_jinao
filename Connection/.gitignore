@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Editable-install artifacts
+*.egg-link
+
+# Simulation outputs (keep these out of git; regenerate at runtime)
+datasets/
+outputs/
+logs/
+*.tmp
+
+# OS
+.DS_Store
+
+# NOTE: Connection/assets/ IS intentionally committed so the project is
+# fully self-contained and reproducible offline. Do not ignore it.

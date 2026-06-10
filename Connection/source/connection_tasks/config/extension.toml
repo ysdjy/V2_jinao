@@ -1,0 +1,12 @@
+[package]
+version = "0.1.0"
+title = "Connection Tasks"
+description = "Custom Isaac Lab tasks (V0: Franka open-drawer state machine)."
+authors = ["banghai"]
+category = "Tasks"
+keywords = ["isaaclab", "manipulation", "franka", "state machine"]
+
+[dependencies]
+
+[[python.module]]
+name = "connection_tasks"

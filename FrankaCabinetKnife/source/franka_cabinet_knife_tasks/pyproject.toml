@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "franka_cabinet_knife_tasks"
+version = "0.1.0"
+description = "Isaac Lab task: official Franka cabinet opening scene with a local knife USD beside the cabinet."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "BSD-3-Clause" }
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["franka_cabinet_knife_tasks*"]
+

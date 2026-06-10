@@ -1,0 +1,12 @@
+[package]
+version = "0.1.0"
+title = "Kitchen V0 Tasks"
+description = "Clean KitchenV0 Isaac Lab scene with Franka, fridge, microwave, cabinet and knife."
+authors = ["banghai"]
+category = "Tasks"
+keywords = ["isaaclab", "manipulation", "franka", "kitchen", "state-machine"]
+
+[dependencies]
+
+[[python.module]]
+name = "kitchen_tasks"

@@ -1,0 +1,3 @@
+6.9：franka抓取cube，场景有刀，柜子
+conda activate env_isaaclab
+  ./isaaclab.sh -p scripts/environments/state_machine/stack_cube_sm.py --num_envs 1

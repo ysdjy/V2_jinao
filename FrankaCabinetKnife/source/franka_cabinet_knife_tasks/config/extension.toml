@@ -1,0 +1,13 @@
+[package]
+version = "0.1.0"
+title = "Franka Cabinet Knife Tasks"
+description = "Official Franka cabinet opening scene with a local knife USD beside the cabinet."
+authors = ["banghai"]
+category = "Tasks"
+keywords = ["isaaclab", "manipulation", "franka", "cabinet", "knife", "state-machine"]
+
+[dependencies]
+
+[[python.module]]
+name = "franka_cabinet_knife_tasks"
+

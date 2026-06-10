@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "connection_tasks"
+version = "0.1.0"
+description = "Connection: custom Isaac Lab tasks. V0 = Franka open-drawer state machine (self-contained, offline assets)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "BSD-3-Clause" }
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["connection_tasks*"]
