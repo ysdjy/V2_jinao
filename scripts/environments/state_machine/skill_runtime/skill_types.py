@@ -1,0 +1,53 @@
+"""Shared enums for structured skill execution."""
+
+from __future__ import annotations
+
+from enum import Enum
+
+
+class SkillType(Enum):
+    GRASP = "grasp"
+    PLACE = "place"
+    OPEN_DRAWER = "open_drawer"
+    CLOSE_DRAWER = "close_drawer"
+
+
+class ExecutionStatus(Enum):
+    IDLE = "idle"
+    RUNNING = "running"
+    STOPPED = "stopped"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    NOT_IMPLEMENTED = "not_implemented"
+
+
+class FailureReason(Enum):
+    NONE = ""
+    NOT_IMPLEMENTED = "NOT_IMPLEMENTED"
+    IK_UNREACHABLE = "IK_UNREACHABLE"
+    POSITION_TIMEOUT = "POSITION_TIMEOUT"
+    ORIENTATION_TIMEOUT = "ORIENTATION_TIMEOUT"
+    GRIPPER_CLOSE_TIMEOUT = "GRIPPER_CLOSE_TIMEOUT"
+    GRASP_VERIFICATION_FAILED = "GRASP_VERIFICATION_FAILED"
+    OBJECT_DROPPED = "OBJECT_DROPPED"
+    TARGET_LOST = "TARGET_LOST"
+    TARGET_UNSAFE = "TARGET_UNSAFE"
+    CANCELLED_BY_USER = "CANCELLED_BY_USER"
+    REQUEST_INVALID = "REQUEST_INVALID"
+    RESET_REQUESTED = "RESET_REQUESTED"
+
+
+class GraspState(Enum):
+    IDLE = "IDLE"
+    ACQUIRE_TARGET = "ACQUIRE_TARGET"
+    MOVE_TO_PRE_GRASP = "MOVE_TO_PRE_GRASP"
+    ALIGN_GRASP = "ALIGN_GRASP"
+    APPROACH_GRASP = "APPROACH_GRASP"
+    CLOSE_GRIPPER = "CLOSE_GRIPPER"
+    VERIFY_GRASP = "VERIFY_GRASP"
+    LIFT = "LIFT"
+    VERIFY_LIFT = "VERIFY_LIFT"
+    HOLD = "HOLD"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"

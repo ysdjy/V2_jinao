@@ -36,7 +36,12 @@ class FrankaCubeStackEnvCfg(stack_joint_pos_env_cfg.FrankaCubeStackEnvCfg):
         self.actions.arm_action = DifferentialInverseKinematicsActionCfg(
             asset_name="robot",
             joint_names=["panda_joint.*"],
+            # The controlled frame is the TCP, not the panda_hand body origin.
+            # The TCP is +0.1034 m on panda_hand local Z, matching the ee_frame sensor
+            # offset in stack_joint_pos_env_cfg.py. Absolute IK commands use
+            # [x, y, z, qw, qx, qy, qz] for this TCP frame.
             body_name="panda_hand",
+            body_offset=DifferentialInverseKinematicsActionCfg.OffsetCfg(pos=[0.0, 0.0, 0.1034]),
             controller=DifferentialIKControllerCfg(command_type="pose", use_relative_mode=False, ik_method="dls"),
         )
 
