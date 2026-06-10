@@ -61,7 +61,7 @@ from isaaclab_tasks.manager_based.manipulation.stack.stack_env_cfg import StackE
 from isaaclab_tasks.utils.parse_cfg import parse_env_cfg
 
 from skill_runtime.base_skill import pose_tensor
-from skill_runtime.debug_visualizer import DebugVisualizer
+from skill_runtime.debug_visualizer import DebugVisualizer, OBJECT_AXIS_LENGTH, OBJECT_AXIS_WIDTH
 from skill_runtime.scene_state_provider import SceneStateProvider
 from skill_runtime.simple_scene_layout import SimpleLayoutResult, SimpleSceneLayoutManager
 from skill_runtime.skill_executor import SkillExecutor
@@ -330,19 +330,20 @@ def main():
 
 def _update_debug_visuals(visualizer: DebugVisualizer, state, executor: SkillExecutor):
     visualizer.update_pose("current_tcp", pose_tensor(state.robot.tcp_pose))
+    for object_name in ("cube_1", "cube_2", "cube_3", "knife"):
+        obj = state.objects.get(object_name)
+        if obj is not None:
+            visualizer.update_pose(
+                f"object_{object_name}",
+                pose_tensor(obj.pose),
+                axis_length=OBJECT_AXIS_LENGTH,
+                axis_width=OBJECT_AXIS_WIDTH,
+            )
     active = executor.active_skill
     runtime = getattr(active, "runtime", None)
     if runtime is None:
         return
-    plan = runtime.filtered_plan
-    if plan is not None:
-        visualizer.update_pose("target_object", pose_tensor(plan.target_pose))
-        visualizer.update_pose("grasp_frame", pose_tensor(plan.grasp_pose))
-        visualizer.update_pose("planned_grasp_frame", pose_tensor(plan.grasp_pose))
-        visualizer.update_pose("pre_grasp_frame", pose_tensor(plan.pre_grasp_pose))
-    visualizer.update_pose("active_command", pose_tensor(runtime.last_command_pose))
-    visualizer.update_pose("locked_probe_lift_frame", pose_tensor(runtime.locked_probe_lift_pose))
-    visualizer.update_pose("locked_full_lift_frame", pose_tensor(runtime.locked_full_lift_pose))
+    visualizer.update_pose("current_stage_target", pose_tensor(runtime.last_command_pose))
 
 
 if __name__ == "__main__":

@@ -7,6 +7,12 @@ import re
 import torch
 
 
+DEFAULT_AXIS_LENGTH = 0.09
+DEFAULT_AXIS_WIDTH = 0.006
+OBJECT_AXIS_LENGTH = 0.045
+OBJECT_AXIS_WIDTH = 0.003
+
+
 class DebugVisualizer:
     def __init__(self, enabled: bool = True):
         self.enabled = enabled
@@ -20,7 +26,13 @@ class DebugVisualizer:
             except Exception:
                 self.enabled = False
 
-    def update_pose(self, name: str, pose_tensor: torch.Tensor | None):
+    def update_pose(
+        self,
+        name: str,
+        pose_tensor: torch.Tensor | None,
+        axis_length: float = DEFAULT_AXIS_LENGTH,
+        axis_width: float = DEFAULT_AXIS_WIDTH,
+    ):
         if not self.enabled or self._stage is None or pose_tensor is None:
             return
         try:
@@ -28,12 +40,39 @@ class DebugVisualizer:
         except Exception:
             return
         path = "/Visuals/SkillRuntime/" + re.sub(r"[^A-Za-z0-9_]", "_", name)
-        xform = self._items.get(path)
-        if xform is None:
-            xform = UsdGeom.Xform.Define(self._stage, path)
-            self._items[path] = xform
-        pos = pose_tensor[:3].detach().cpu().tolist()
-        quat = pose_tensor[3:7].detach().cpu().tolist()
-        xform.ClearXformOpOrder()
-        xform.AddTranslateOp().Set(Gf.Vec3d(*pos))
-        xform.AddOrientOp().Set(Gf.Quatf(float(quat[0]), float(quat[1]), float(quat[2]), float(quat[3])))
+        curves = self._items.get(path)
+        if curves is None:
+            curves = self._define_axes(path, axis_width)
+            self._items[path] = curves
+        pos = pose_tensor[:3].detach()
+        quat = pose_tensor[3:7].detach()
+        axes = self._rotated_axes(quat, pos.device, pos.dtype) * axis_length
+        start = pos.detach().cpu().tolist()
+        for curve, axis in zip(curves, axes):
+            end = (pos + axis).detach().cpu().tolist()
+            curve.GetPointsAttr().Set([Gf.Vec3d(*start), Gf.Vec3d(*end)])
+            curve.GetCurveVertexCountsAttr().Set([2])
+            curve.GetWidthsAttr().Set([axis_width])
+
+    def _define_axes(self, path: str, axis_width: float):
+        from pxr import UsdGeom
+
+        curves = []
+        colors = [(1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.1, 0.35, 1.0)]
+        for axis_name, color in zip(("x", "y", "z"), colors):
+            curve = UsdGeom.BasisCurves.Define(self._stage, f"{path}_{axis_name}")
+            curve.CreateTypeAttr("linear")
+            curve.CreateBasisAttr("bezier")
+            curve.CreateDisplayColorAttr([color])
+            curve.CreateWidthsAttr([axis_width])
+            curve.CreateCurveVertexCountsAttr([2])
+            curves.append(curve)
+        return curves
+
+    def _rotated_axes(self, quat: torch.Tensor, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
+        local_axes = torch.eye(3, device=device, dtype=dtype)
+        q = quat.to(device=device, dtype=dtype)
+        q = q / torch.linalg.norm(q).clamp_min(1.0e-8)
+        xyz = q[1:].unsqueeze(0).expand_as(local_axes)
+        t = torch.linalg.cross(xyz, local_axes, dim=-1) * 2.0
+        return local_axes + q[0] * t + torch.linalg.cross(xyz, t, dim=-1)
