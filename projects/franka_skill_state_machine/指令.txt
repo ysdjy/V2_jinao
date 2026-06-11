@@ -1,0 +1,65 @@
+============================================================
+ Franka Skill State Machine —— 运行指令
+ 环境: conda env_isaaclab ；在 IsaacLab 仓库根目录执行
+ 先: conda activate env_isaaclab
+============================================================
+
+# 路径说明：入口都在 projects/franka_skill_state_machine/entries/
+
+------------------------------------------------------------
+[1] joint 交互 UI（手动点按钮跑技能；不会自动执行）
+------------------------------------------------------------
+./isaaclab.sh -p projects/franka_skill_state_machine/entries/skill_test_ui_joint.py \
+  --num_envs 1 --show_affordance_debug \
+  --grasp_backend joint_ik --place_backend joint_ik --drawer_backend ik_pull --seed 1
+# UI: Skill 选 Grasp/Place/Open Drawer/Close Drawer；选目标后点 Start。
+# Place point 有 4 个(point_a~d)，可自由移动，步长 1/5/10 cm。
+# drawer_backend: none(禁用) / ik_pull(物理开关,推荐) / scripted_joint(基线) / custom_selected_policy(学习,需 policy.pt)
+
+------------------------------------------------------------
+[2] headless 顺序执行：抓取 + 放置
+------------------------------------------------------------
+./isaaclab.sh -p projects/franka_skill_state_machine/entries/skill_sequence_joint.py \
+  --num_envs 1 --sequence grasp:cube_1,place:point_a \
+  --grasp_backend joint_ik --place_backend joint_ik --drawer_backend none \
+  --seed 1 --max_steps 2000 --headless
+
+------------------------------------------------------------
+[3] headless 顺序执行：物理开 + 关抽屉（IK，无需训练）
+------------------------------------------------------------
+./isaaclab.sh -p projects/franka_skill_state_machine/entries/skill_sequence_joint.py \
+  --num_envs 1 --sequence open_drawer:top_drawer,close_drawer:top_drawer \
+  --drawer_backend ik_pull --seed 1 --max_steps 1600 --headless
+# 也可 open_drawer:middle_drawer（bottom 当前 asset 卡死，暂不可开）
+
+------------------------------------------------------------
+[4] 诊断 / 标定脚本
+------------------------------------------------------------
+# 抽屉关节扫描（确认 top/middle/bottom -> joint 映射、开合方向、是否卡死）
+./isaaclab.sh -p projects/franka_skill_state_machine/entries/debug_drawer_joint_scan.py \
+  --num_envs 1 --drawer_joint all --values 0.00,0.05,0.10,0.20,0.30 --disable_fabric --headless
+# 把手 front-face 偏移标定
+./isaaclab.sh -p projects/franka_skill_state_machine/entries/debug_drawer_handle_calib.py \
+  --num_envs 1 --disable_fabric --headless
+# 抓门把测试 / 物理开抽屉测试（可带 GUI 观察）
+./isaaclab.sh -p projects/franka_skill_state_machine/entries/debug_handle_grasp_test.py --target_drawer top_drawer --seed 1
+./isaaclab.sh -p projects/franka_skill_state_machine/entries/debug_open_drawer_ik.py --target_drawer top_drawer --seed 1
+
+------------------------------------------------------------
+[5] 旧 IK-Abs UI（回归测试，未改动）
+------------------------------------------------------------
+./isaaclab.sh -p projects/franka_skill_state_machine/entries/skill_test_ui.py \
+  --num_envs 1 --show_affordance_debug --seed 1
+
+------------------------------------------------------------
+[6] (暂存) RL 学习开抽屉 —— 非当前主路径，未来可用
+------------------------------------------------------------
+# 自定义 selected-drawer 任务短训练 sanity
+./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/train.py \
+  --task Isaac-Open-CustomDrawer-Selected-Franka-v0 --num_envs 128 --max_iterations 5 --headless
+# 从官方 checkpoint fine-tune
+./isaaclab.sh -p projects/franka_skill_state_machine/learned_drawer/finetune_custom_drawer_from_official.py \
+  --use_published_official_checkpoint --num_envs 128 --max_iterations 5 --headless --seed 1
+# 导出 learned policy 为 torchscript
+./isaaclab.sh -p projects/franka_skill_state_machine/learned_drawer/export_custom_drawer_selected_policy.py \
+  --num_envs 1 --output_path logs/policies/custom_drawer_selected_policy.pt --headless
