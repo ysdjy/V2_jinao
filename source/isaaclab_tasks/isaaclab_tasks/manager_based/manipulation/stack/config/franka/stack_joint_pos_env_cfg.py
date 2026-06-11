@@ -216,12 +216,12 @@ class FrankaCubeStackEnvCfg(StackEnvCfg):
                 size=CABINET_BOTTOM_HANDLE_PROXY_SIZE,
                 visible=True,
                 physics_material=sim_utils.RigidBodyMaterialCfg(
-                    static_friction=4.0,
-                    dynamic_friction=4.0,
+                    static_friction=1.0,
+                    dynamic_friction=1.0,
                     restitution=0.0,
                     friction_combine_mode="max",
                 ),
-                collision_props=sim_utils.CollisionPropertiesCfg(contact_offset=0.004, rest_offset=0.0),
+                collision_props=sim_utils.CollisionPropertiesCfg(contact_offset=0.002, rest_offset=0.0),
                 visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.05, 0.9, 1.0), opacity=0.35),
             ),
         )

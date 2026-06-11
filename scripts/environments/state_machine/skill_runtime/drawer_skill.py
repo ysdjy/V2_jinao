@@ -51,6 +51,7 @@ class DrawerPlan:
 @dataclass
 class DrawerSkillConfig:
     pre_distance: float = 0.10
+    grasp_standoff: float = 0.012
     pull_distance: float = 0.22
     retreat_distance: float = 0.08
     push_margin: float = 0.04
@@ -68,6 +69,10 @@ class DrawerSkillConfig:
 
     settle_duration: float = 0.20
     close_gripper_duration: float = 0.50
+    close_stability_duration: float = 0.60
+    max_close_tcp_displacement: float = 0.020
+    max_close_tcp_rotation: float = math.radians(12.0)
+    max_close_joint_jump: float = math.radians(20.0)
     release_duration: float = 0.40
     state_timeout: float = 12.0
 
@@ -89,6 +94,13 @@ class DrawerRuntime:
     final_error_ori: float | None = None
     initial_joint_pos: float = 0.0
     max_joint_displacement: float = 0.0
+    close_hold_pose: PoseState | None = None
+    close_start_tcp_pose: PoseState | None = None
+    close_start_joint_pos: torch.Tensor | None = None
+    max_close_tcp_displacement: float = 0.0
+    max_close_tcp_rotation: float = 0.0
+    max_close_joint_jump: float = 0.0
+    last_close_stability_log_time: float = -1.0e9
     last_failure_message: str | None = None
     history: list[dict] = field(default_factory=list)
 
@@ -186,28 +198,78 @@ class DrawerSkill:
             self._advance_when_reached(state, desired, "SETTLE_AT_HANDLE", FailureReason.POSITION_TIMEOUT)
         elif self.runtime.state == "SETTLE_AT_HANDLE":
             desired = plan.grasp_pose
-            command_pose = desired
+            command_pose = self._bounded_command(state, desired, self.cfg.contact_position_step, self.cfg.move_orientation_step)
             if self._state_elapsed(state) >= self.cfg.settle_duration:
+                self.runtime.close_hold_pose = PoseState(
+                    state.robot.tcp_pose.pos_w.clone(),
+                    state.robot.tcp_pose.quat_w.clone(),
+                )
+                self.runtime.close_start_tcp_pose = PoseState(
+                    state.robot.tcp_pose.pos_w.clone(),
+                    state.robot.tcp_pose.quat_w.clone(),
+                )
+                self.runtime.close_start_joint_pos = state.robot.joint_pos.clone()
+                self._log_close_hold(plan)
                 self._transition(state, "CLOSE_GRIPPER")
         elif self.runtime.state == "CLOSE_GRIPPER":
-            desired = plan.grasp_pose
-            command_pose = desired
+            hold_pose = self.runtime.close_hold_pose
+            if hold_pose is None:
+                self.runtime.last_command_pose = PoseState(
+                    state.robot.tcp_pose.pos_w.clone(),
+                    state.robot.tcp_pose.quat_w.clone(),
+                )
+                self._fail(state, FailureReason.HANDLE_GRASP_FAILED, "close hold pose is missing")
+                return SkillCommand(self.runtime.last_command_pose, 1.0, self.status)
+            desired = hold_pose
+            command_pose = hold_pose
             gripper = -1.0
             if self._state_elapsed(state) >= self.cfg.close_gripper_duration:
-                self._transition(state, "VERIFY_HANDLE_GRASP")
-        elif self.runtime.state == "VERIFY_HANDLE_GRASP":
-            desired = plan.grasp_pose
-            command_pose = desired
+                self._transition(state, "VERIFY_CLOSE_STABILITY")
+        elif self.runtime.state == "VERIFY_CLOSE_STABILITY":
+            hold_pose = self.runtime.close_hold_pose
+            start_pose = self.runtime.close_start_tcp_pose
+            start_joints = self.runtime.close_start_joint_pos
+            if hold_pose is None or start_pose is None or start_joints is None:
+                self.runtime.last_command_pose = PoseState(
+                    state.robot.tcp_pose.pos_w.clone(),
+                    state.robot.tcp_pose.quat_w.clone(),
+                )
+                self._fail(state, FailureReason.HANDLE_GRASP_FAILED, "close stability reference is missing")
+                return SkillCommand(self.runtime.last_command_pose, 1.0, self.status)
+            desired = hold_pose
+            command_pose = hold_pose
             gripper = -1.0
-            if state.robot.gripper_width < self.cfg.min_handle_grasp_width:
+            tcp_error = pose_error(state.robot.tcp_pose, start_pose)
+            joint_jump = float(torch.max(torch.abs(state.robot.joint_pos - start_joints)).detach().cpu())
+            self.runtime.max_close_tcp_displacement = max(self.runtime.max_close_tcp_displacement, tcp_error.position)
+            self.runtime.max_close_tcp_rotation = max(self.runtime.max_close_tcp_rotation, tcp_error.orientation)
+            self.runtime.max_close_joint_jump = max(self.runtime.max_close_joint_jump, joint_jump)
+            self._log_close_stability(state, tcp_error, joint_jump)
+            unstable = (
+                tcp_error.position > self.cfg.max_close_tcp_displacement
+                or tcp_error.orientation > self.cfg.max_close_tcp_rotation
+                or joint_jump > self.cfg.max_close_joint_jump
+            )
+            if unstable:
+                self.runtime.last_command_pose = PoseState(
+                    state.robot.tcp_pose.pos_w.clone(),
+                    state.robot.tcp_pose.quat_w.clone(),
+                )
                 self._fail(
                     state,
                     FailureReason.HANDLE_GRASP_FAILED,
-                    f"gripper closed empty width={state.robot.gripper_width:.5f}",
+                    "unstable handle contact: "
+                    f"tcp_shift={tcp_error.position:.5f}, "
+                    f"tcp_rotation_deg={math.degrees(tcp_error.orientation):.2f}, "
+                    f"max_joint_jump_deg={math.degrees(joint_jump):.2f}",
                 )
-            else:
-                self._lock_pull_pose(state, plan)
-                self._transition(state, "PULL_OPEN")
+                return SkillCommand(self.runtime.last_command_pose, 1.0, self.status)
+            if self._state_elapsed(state) >= self.cfg.close_stability_duration:
+                self._transition(state, "DEBUG_HOLD")
+        elif self.runtime.state == "DEBUG_HOLD":
+            desired = self.runtime.close_hold_pose or plan.grasp_pose
+            command_pose = desired
+            gripper = -1.0
         elif self.runtime.state == "PULL_OPEN":
             desired = plan.pull_pose
             command_pose = self._bounded_command(state, desired, self.cfg.pull_position_step, self.cfg.move_orientation_step)
@@ -325,8 +387,9 @@ class DrawerSkill:
         drawer_quat = self._drawer_grasp_quat(outward)
         initial_joint_pos = float(cabinet.joint_pos[BOTTOM_DRAWER_JOINT])
 
-        pre_pos = handle_pose.pos_w + outward * self.cfg.pre_distance
-        grasp_pose = PoseState(handle_pose.pos_w, drawer_quat)
+        grasp_pos = handle_pose.pos_w + outward * self.cfg.grasp_standoff
+        pre_pos = grasp_pos + outward * self.cfg.pre_distance
+        grasp_pose = PoseState(grasp_pos, drawer_quat)
         pre_handle_pose = PoseState(pre_pos, drawer_quat)
         pull_pose = PoseState(handle_pose.pos_w + outward * self.cfg.pull_distance, drawer_quat)
         push_contact_pose = PoseState(handle_pose.pos_w + outward * self.cfg.push_contact_offset, drawer_quat)
@@ -540,3 +603,25 @@ class DrawerSkill:
             "grasp_quaternion": [round(float(v), 5) for v in plan.grasp_pose.quat_w.detach().cpu().tolist()],
         }
         print(f"[DrawerSkill] plan {record}", flush=True)
+
+    def _log_close_hold(self, plan: DrawerPlan):
+        hold_pose = self.runtime.close_hold_pose
+        record = {
+            "handle_center": format_pose(plan.handle_pose),
+            "planned_grasp_pose": format_pose(plan.grasp_pose),
+            "actual_close_hold_pose": None if hold_pose is None else format_pose(hold_pose),
+            "grasp_standoff": self.cfg.grasp_standoff,
+        }
+        print(f"[DrawerSkill] close_hold {record}", flush=True)
+
+    def _log_close_stability(self, state: SceneState, tcp_error, joint_jump: float):
+        if state.sim_time - self.runtime.last_close_stability_log_time < 0.20:
+            return
+        self.runtime.last_close_stability_log_time = state.sim_time
+        record = {
+            "gripper_width": round(state.robot.gripper_width, 5),
+            "tcp_shift": round(tcp_error.position, 5),
+            "tcp_rotation_deg": round(math.degrees(tcp_error.orientation), 3),
+            "max_joint_jump_deg": round(math.degrees(joint_jump), 3),
+        }
+        print(f"[DrawerSkill] close_stability {record}", flush=True)
