@@ -21,6 +21,7 @@ import torch
 
 import isaaclab.utils.math as math_utils
 
+from .drawer_target_config import DRAWER_TARGETS
 from .scene_state_provider import SceneState
 
 # bottom-drawer handle proxy local offset on link_1 (see stack_joint_pos_env_cfg.py).
@@ -88,5 +89,67 @@ class DrawerObsAdapter:
         obs = torch.cat(
             (joint_pos_rel, joint_vel_rel, cab_jp, cab_jv, rel_ee_drawer, last_action), dim=-1
         )
+        self.last_obs_dim = int(obs.shape[-1])
+        return obs
+
+
+class SelectedDrawerObsAdapter:
+    """Deployment-side builder of the 31-d selected-drawer obs, matching the training env.
+
+    The custom RL env (custom_drawer_mdp) builds obs from its drawer_frames FrameTransformer
+    (zero offset on link_0 / link_2) + the per-env selected joint. The deployment env
+    (Isaac-Stack-Cube-Franka-JointPolicy-v0) has no drawer_frames sensor, so here the selected
+    handle = the drawer link body world pose (link origin == zero-offset frame), and the selected
+    joint is resolved from the central target->joint config. Order matches training exactly:
+        joint_pos_rel(9) | joint_vel_rel(9) | sel_joint_pos(1) | sel_joint_vel(1) |
+        (sel_handle - tcp)(3) | last_action(8)  -> 31
+    """
+
+    def __init__(self, env, target_drawer: str, env_id: int = 0):
+        cfg = DRAWER_TARGETS[target_drawer]
+        self.env = env
+        self.target_drawer = target_drawer
+        self.env_id = env_id
+        self.scene = env.unwrapped.scene
+        self.device = self.scene.device
+        self.cabinet = self.scene["cabinet"]
+        self.joint_name = cfg["joint_name"]
+        self.link_name = cfg["link_name"]
+
+        jnames = list(getattr(self.cabinet.data, "joint_names", []))
+        self._joint_id = jnames.index(self.joint_name)
+        bnames = list(getattr(self.cabinet.data, "body_names", []))
+        self._link_idx = next((i for i, n in enumerate(bnames) if self.link_name == n), None)
+        if self._link_idx is None:
+            self._link_idx = next((i for i, n in enumerate(bnames) if self.link_name in n), 0)
+        self.last_obs_dim: int | None = None
+
+    def selected_handle_pos_w(self) -> torch.Tensor:
+        return self.cabinet.data.body_pos_w[:, self._link_idx]
+
+    def selected_drawer_joint_pos(self) -> float:
+        return float(self.cabinet.data.joint_pos[self.env_id, self._joint_id])
+
+    def build(self, state: SceneState | None = None) -> torch.Tensor:
+        robot = self.scene["robot"]
+        ee_frame = self.scene["ee_frame"]
+
+        joint_pos_rel = robot.data.joint_pos - robot.data.default_joint_pos
+        joint_vel_rel = robot.data.joint_vel - robot.data.default_joint_vel
+
+        cab_jp = (
+            self.cabinet.data.joint_pos[:, self._joint_id]
+            - self.cabinet.data.default_joint_pos[:, self._joint_id]
+        ).unsqueeze(-1)
+        cab_jv = (
+            self.cabinet.data.joint_vel[:, self._joint_id]
+            - self.cabinet.data.default_joint_vel[:, self._joint_id]
+        ).unsqueeze(-1)
+
+        tcp_pos_w = ee_frame.data.target_pos_w[:, 0, :]
+        rel = self.selected_handle_pos_w() - tcp_pos_w
+
+        last_action = self.env.unwrapped.action_manager.action
+        obs = torch.cat((joint_pos_rel, joint_vel_rel, cab_jp, cab_jv, rel, last_action), dim=-1)
         self.last_obs_dim = int(obs.shape[-1])
         return obs

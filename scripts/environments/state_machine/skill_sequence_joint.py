@@ -42,11 +42,11 @@ parser.add_argument("--place_backend", type=str, default="joint_ik", choices=["j
 parser.add_argument(
     "--drawer_backend",
     type=str,
-    default="official_joint_policy",
-    choices=["official_joint_policy", "scripted_joint"],
+    default="scripted_joint",
+    choices=["none", "scripted_joint", "official_joint_policy", "custom_selected_policy"],
     help="Drawer backend.",
 )
-parser.add_argument("--drawer_policy_path", type=str, default=None, help="TorchScript policy.pt for official drawer.")
+parser.add_argument("--drawer_policy_path", type=str, default=None, help="TorchScript policy.pt for the learned drawer backend.")
 parser.add_argument("--drawer_joint_name", type=str, default="joint_0", help="Cabinet drawer joint to read for success.")
 parser.add_argument("--drawer_success_threshold", type=float, default=0.20, help="Drawer-open success threshold (m).")
 parser.add_argument("--max_steps", type=int, default=3000, help="Global hard cap on sim steps.")
@@ -187,9 +187,10 @@ def main():
 
     drawer_policy = None
     drawer_obs_adapter = None
-    if args_cli.drawer_backend == "official_joint_policy":
+    if args_cli.drawer_backend in ("official_joint_policy", "custom_selected_policy"):
         # raises immediately with guidance if the path is missing/not found (no silent fallback)
         drawer_policy = OfficialDrawerPolicyWrapper(args_cli.drawer_policy_path, device=env.unwrapped.device)
+    if args_cli.drawer_backend == "official_joint_policy":
         drawer_obs_adapter = DrawerObsAdapter(env, drawer_joint_name=args_cli.drawer_joint_name)
 
     backend = JointBackendConfig(
@@ -200,6 +201,7 @@ def main():
         adapter=adapter,
         drawer_policy=drawer_policy,
         drawer_obs_adapter=drawer_obs_adapter,
+        drawer_env=env,
         arm_joint_ids=provider._arm_joint_ids,
         drawer_joint_name=args_cli.drawer_joint_name,
         drawer_success_threshold=args_cli.drawer_success_threshold,

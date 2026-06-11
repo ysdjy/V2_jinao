@@ -11,6 +11,7 @@ import torch
 from isaaclab.utils import math as math_utils
 
 from .base_skill import SkillCommand
+from .custom_drawer_joint_skill import CustomDrawerJointSkill
 from .drawer_skill import DrawerSkill
 from .grasp_skill import GraspSkill
 from .grasp_joint_skill import GraspJointSkill
@@ -38,10 +39,11 @@ class JointBackendConfig:
     mode: str = "ik"  # "ik" (legacy) or "joint"
     grasp_backend: str = "joint_ik"
     place_backend: str = "joint_ik"
-    drawer_backend: str = "official_joint_policy"  # or "scripted_joint"
+    drawer_backend: str = "official_joint_policy"  # none | scripted_joint | official_joint_policy | custom_selected_policy
     adapter: object | None = None
     drawer_policy: object | None = None
     drawer_obs_adapter: object | None = None
+    drawer_env: object | None = None  # env handle for the custom selected-drawer obs adapter
     arm_joint_ids: object | None = None
     drawer_joint_name: str = "joint_0"
     drawer_success_threshold: float = 0.20
@@ -135,6 +137,15 @@ class SkillExecutor:
             self.status_text = self.status.value
             return None
         elif request.skill_type in (SkillType.OPEN_DRAWER, SkillType.CLOSE_DRAWER):
+            if joint_mode and self.backend.drawer_backend == "none":
+                print(
+                    "[Executor] drawer_backend='none': Open/Close Drawer is disabled. "
+                    "Choose scripted_joint (baseline) or custom_selected_policy (learned).",
+                    flush=True,
+                )
+                return self._make_immediate_failure(
+                    request, FailureReason.REQUEST_INVALID, "drawer_backend=none (disabled)"
+                )
             self.active_skill = self._make_drawer_skill(request)
             self.active_skill.start(state)
             self.status = self.active_skill.status
@@ -161,11 +172,17 @@ class SkillExecutor:
     def _make_drawer_skill(self, request: SkillRequest):
         if self.backend.mode != "joint":
             return DrawerSkill(request)
-        use_official = (
-            self.backend.drawer_backend == "official_joint_policy"
-            and request.skill_type == SkillType.OPEN_DRAWER
-        )
-        if use_official:
+        is_open = request.skill_type == SkillType.OPEN_DRAWER
+        backend = self.backend.drawer_backend
+        if backend == "custom_selected_policy" and is_open:
+            if self.backend.drawer_policy is None or self.backend.drawer_env is None:
+                raise RuntimeError(
+                    "drawer_backend='custom_selected_policy' requires a loaded policy and drawer_env"
+                )
+            return CustomDrawerJointSkill(
+                request, policy=self.backend.drawer_policy, env=self.backend.drawer_env
+            )
+        if backend == "official_joint_policy" and is_open:
             if self.backend.drawer_policy is None or self.backend.drawer_obs_adapter is None:
                 raise RuntimeError(
                     "drawer_backend='official_joint_policy' requires a loaded policy and obs adapter"

@@ -17,8 +17,10 @@ import torch
 from isaaclab.utils import math as math_utils
 
 
-CABINET_LOCAL_X = 0.78
-CABINET_LOCAL_Y = 0.52
+# Unified with the RL training env cfg (stack_joint_pos_env_cfg.py cabinet init pos) so the learned
+# drawer policy sees the SAME cabinet pose in training and deployment.
+CABINET_LOCAL_X = 1.0
+CABINET_LOCAL_Y = -0.8
 CABINET_Z_CORRECTION = 0.0
 CABINET_YAW_PI = False
 
@@ -168,8 +170,10 @@ class SimpleSceneLayoutManager:
 
     def _validate_layout(self, object_poses: dict[str, list[float]]) -> None:
         cabinet_pose = object_poses["cabinet"]
-        if cabinet_pose[1] <= 0.25:
-            raise ValueError(f"Cabinet must remain on the left side, got y={cabinet_pose[1]:.3f}")
+        # cabinet is intentionally placed on the -y side at (1.0, -0.8) to match the RL training env
+        # and to clear the arm during drawer opening; just sanity-check it is finite.
+        if not all(math.isfinite(value) for value in cabinet_pose):
+            raise ValueError(f"Cabinet has non-finite pose: {cabinet_pose}")
 
         movable = {name: object_poses[name] for name in ("cube_1", "cube_2", "cube_3", "knife")}
         for name, pose in movable.items():

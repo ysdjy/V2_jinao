@@ -194,7 +194,7 @@ class FrankaCubeStackEnvCfg(StackEnvCfg):
                 semantic_tags=[("class", "cabinet")],
             ),
             init_state=ArticulationCfg.InitialStateCfg(
-                pos=(0.85, -0.65, 0.323),
+                pos=(1.0, -0.8, 0.323),  # shifted +0.15 world-X, -0.15 world-Y to clear the arm during drawer opening
                 rot=(1.0, 0.0, 0.0, 0.0),
                 joint_pos={".*": 0.0},
                 joint_vel={".*": 0.0},

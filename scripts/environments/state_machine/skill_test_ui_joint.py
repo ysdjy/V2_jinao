@@ -42,11 +42,13 @@ parser.add_argument("--place_backend", type=str, default="joint_ik", choices=["j
 parser.add_argument(
     "--drawer_backend",
     type=str,
-    default="scripted_joint",
-    choices=["scripted_joint", "official_joint_policy"],
-    help="Drawer backend (default scripted_joint; never auto-runs).",
+    default="none",
+    choices=["none", "scripted_joint", "official_joint_policy", "custom_selected_policy"],
+    help="Drawer backend. Default 'none' (Open Drawer disabled) so scripted_joint is not mistaken "
+    "for a learned skill. scripted_joint = direct drawer-joint baseline (robot does NOT physically "
+    "pull). custom_selected_policy = learned policy. Never auto-runs.",
 )
-parser.add_argument("--drawer_policy_path", type=str, default=None, help="TorchScript policy.pt for official drawer.")
+parser.add_argument("--drawer_policy_path", type=str, default=None, help="TorchScript policy.pt for the learned drawer backend.")
 parser.add_argument("--log_every", type=int, default=30, help="Low-frequency debug log interval (sim steps).")
 parser.add_argument(
     "--cube_grasp_z_offset",
@@ -273,10 +275,31 @@ class SkillTestWindow:
                 )
             )
             return
-        target = self.selected_drawer if self.controller.selected_skill in (
-            SkillType.OPEN_DRAWER,
-            SkillType.CLOSE_DRAWER,
-        ) else self.controller.selected_target
+        if self.controller.selected_skill in (SkillType.OPEN_DRAWER, SkillType.CLOSE_DRAWER):
+            backend = self.executor.backend.drawer_backend
+            target = self.selected_drawer
+            if backend == "none":
+                print(
+                    "[UI] drawer_backend='none': Open/Close Drawer is disabled. Relaunch with "
+                    "--drawer_backend scripted_joint (baseline) or custom_selected_policy (learned).",
+                    flush=True,
+                )
+                return
+            if backend == "scripted_joint":
+                print(
+                    "[BASELINE WARNING] scripted_joint directly commands drawer_joint_target; "
+                    "robot arm will hold still.",
+                    flush=True,
+                )
+            if backend == "custom_selected_policy" and target == "bottom_drawer":
+                print(
+                    "[UI][WARNING] bottom_drawer is currently locked / non-functional; "
+                    "train/test top and middle first.",
+                    flush=True,
+                )
+            self.controller.queue_request(_make_request(self.controller.selected_skill, target))
+            return
+        target = self.controller.selected_target
         self.controller.queue_request(_make_request(self.controller.selected_skill, target))
 
     def update(self, state, executor: SkillExecutor, layout_result: SimpleLayoutResult | None):
@@ -460,8 +483,9 @@ def main():
 
     drawer_policy = None
     drawer_obs_adapter = None
-    if args_cli.drawer_backend == "official_joint_policy":
+    if args_cli.drawer_backend in ("official_joint_policy", "custom_selected_policy"):
         drawer_policy = OfficialDrawerPolicyWrapper(args_cli.drawer_policy_path, device=env.unwrapped.device)
+    if args_cli.drawer_backend == "official_joint_policy":
         drawer_obs_adapter = DrawerObsAdapter(env, drawer_joint_name="joint_0")
 
     backend = JointBackendConfig(
@@ -472,6 +496,7 @@ def main():
         adapter=adapter,
         drawer_policy=drawer_policy,
         drawer_obs_adapter=drawer_obs_adapter,
+        drawer_env=env,
         arm_joint_ids=provider._arm_joint_ids,
         drawer_joint_name="joint_0",
     )

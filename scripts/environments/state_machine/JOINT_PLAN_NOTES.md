@@ -197,6 +197,30 @@ use_default_offset)，与状态机部署 env(JointPolicy)动作契约一致，po
 - **bottom_drawer 卡死**：仍 `functional=False`，未纳入训练，需先修 asset 碰撞/closed 偏移。
 - **正式训练**(num_envs≥1024, max_iter 100/200/400)：需用户确认后再跑。
 
+## 5f. Stage 6 部署集成（已完成并验证）+ cabinet 移动
+
+- 新增 `export_custom_drawer_selected_policy.py`（从 logs/rsl_rl/custom_drawer_selected 最新或 --checkpoint
+  导出 torchscript → `logs/policies/custom_drawer_selected_policy.pt`，导出后退出）。
+- 新增 `skill_runtime/custom_drawer_joint_skill.py`（CustomDrawerJointSkill）+
+  `SelectedDrawerObsAdapter`（部署侧 31 维 selected obs，handle=drawer link body 世界位姿，与训练一致）。
+- executor 新增 backend `custom_selected_policy`；`skill_sequence_joint.py` / `skill_test_ui_joint.py`
+  都支持 `--drawer_backend custom_selected_policy --drawer_policy_path ...`。
+- UI 新增 `drawer_backend="none"`（默认，Open Drawer 禁用，避免误以为 scripted 是学习技能）；
+  点 Open Drawer 时：scripted→打印 `[BASELINE WARNING] scripted_joint directly commands
+  drawer_joint_target; robot arm will hold still.`；none→提示禁用；custom+bottom→打印锁死 WARNING。
+- custom_selected_policy 路径：状态机只传 target_drawer；skill 内部选 joint/handle、构造 selected obs、
+  policy 输出 raw joint action、**drawer_joint_target 恒 None、绝不 set_cabinet_joint_target**。
+- 链路测试（5-iter sanity checkpoint 导出 policy.pt）：policy 加载✓、obs[1,31]✓、action[1,8]✓、
+  OUTPUT=joint(raw_joint_action)✓、drawer_joint_target=None✓、arm 随 policy 运动✓、
+  top→joint_0/上抽屉、middle→joint_2/中抽屉 selected obs 正确✓、bottom→WARNING+REQUEST_INVALID 拒绝✓。
+  （sanity policy 未训练，抽屉未真正打开，符合预期。）
+
+**cabinet 移动**：按要求柜子 +0.15 世界 X、−0.15 世界 Y。改了两处：
+  `stack_joint_pos_env_cfg.py` init pos (0.85,−0.65)→(1.0,−0.8)（RL 训练 env），
+  `simple_scene_layout.py` CABINET_LOCAL 0.78/0.52→0.93/0.37（部署 UI/sequence）。验证 handle 整体平移 +0.15X/−0.15Y。
+  ⚠️ 注意：训练 env(cfg, y=−0.8) 与部署 layout(y=+0.37) 柜子位置**本就不一致**（历史遗留），
+  这会影响 learned policy 的 train→deploy 迁移；正式训练前建议统一两者的柜子位姿。
+
 ## 6. 已知问题 / 需要后续 fine-tune
 
 1. **官方 drawer policy zero-shot 不能打开自定义抽屉**：官方 policy 在 Sektion cabinet + `drawer_top_joint` +
