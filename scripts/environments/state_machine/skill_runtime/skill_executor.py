@@ -13,12 +13,38 @@ from isaaclab.utils import math as math_utils
 from .base_skill import SkillCommand
 from .drawer_skill import DrawerSkill
 from .grasp_skill import GraspSkill
+from .grasp_joint_skill import GraspJointSkill
+from .official_drawer_joint_skill import OfficialDrawerJointSkill
 from .place_skill import PlaceSkill
+from .place_joint_skill import PlaceJointSkill
+from .scripted_drawer_joint_skill import ScriptedDrawerJointSkill
 from .scene_state_provider import PoseState, SceneState
 from .skill_request import SkillRequest
 from .skill_result import SkillResult
 from .skill_types import ExecutionStatus, FailureReason, SkillType
 from .target_registry import TargetRegistry
+
+
+@dataclass
+class JointBackendConfig:
+    """Backend selection + dependencies for the joint-action state machine path.
+
+    When ``mode == "joint"`` all skills emit joint commands. ``adapter`` (IKJointAdapter) drives the
+    IK grasp/place backends; ``drawer_policy`` + ``drawer_obs_adapter`` drive the learned drawer
+    backend. ``arm_joint_ids`` indexes the arm joints inside ``robot.data.joint_pos`` for hold/safe
+    commands.
+    """
+
+    mode: str = "ik"  # "ik" (legacy) or "joint"
+    grasp_backend: str = "joint_ik"
+    place_backend: str = "joint_ik"
+    drawer_backend: str = "official_joint_policy"  # or "scripted_joint"
+    adapter: object | None = None
+    drawer_policy: object | None = None
+    drawer_obs_adapter: object | None = None
+    arm_joint_ids: object | None = None
+    drawer_joint_name: str = "joint_0"
+    drawer_success_threshold: float = 0.20
 
 
 @dataclass
@@ -35,8 +61,14 @@ class HeldObjectContext:
 
 
 class SkillExecutor:
-    def __init__(self, registry: TargetRegistry, log_path: str | os.PathLike = "logs/skill_tests/grasp_results.jsonl"):
+    def __init__(
+        self,
+        registry: TargetRegistry,
+        log_path: str | os.PathLike = "logs/skill_tests/grasp_results.jsonl",
+        backend: JointBackendConfig | None = None,
+    ):
         self.registry = registry
+        self.backend = backend or JointBackendConfig(mode="ik")
         self.active_skill = None
         self.active_request: SkillRequest | None = None
         self.status = ExecutionStatus.IDLE
@@ -83,20 +115,27 @@ class SkillExecutor:
         self.paused = False
         self.pause_started_at = None
         self.active_request = request
+        joint_mode = self.backend.mode == "joint"
         if request.skill_type == SkillType.GRASP:
-            self.active_skill = GraspSkill(request, self.registry)
+            if joint_mode:
+                self.active_skill = GraspJointSkill(request, self.registry, self.backend.adapter)
+            else:
+                self.active_skill = GraspSkill(request, self.registry)
             self.active_skill.start(state)
             self.status = ExecutionStatus.RUNNING
             self.status_text = self.status.value
             return None
         if request.skill_type == SkillType.PLACE:
-            self.active_skill = PlaceSkill(request, held_object=self.held_object)
+            if joint_mode:
+                self.active_skill = PlaceJointSkill(request, self.backend.adapter, held_object=self.held_object)
+            else:
+                self.active_skill = PlaceSkill(request, held_object=self.held_object)
             self.active_skill.start(state)
             self.status = self.active_skill.status
             self.status_text = self.status.value
             return None
         elif request.skill_type in (SkillType.OPEN_DRAWER, SkillType.CLOSE_DRAWER):
-            self.active_skill = DrawerSkill(request)
+            self.active_skill = self._make_drawer_skill(request)
             self.active_skill.start(state)
             self.status = self.active_skill.status
             self.status_text = self.status.value
@@ -119,6 +158,28 @@ class SkillExecutor:
         print("NOT_IMPLEMENTED: this skill will be implemented in a later stage")
         return result
 
+    def _make_drawer_skill(self, request: SkillRequest):
+        if self.backend.mode != "joint":
+            return DrawerSkill(request)
+        use_official = (
+            self.backend.drawer_backend == "official_joint_policy"
+            and request.skill_type == SkillType.OPEN_DRAWER
+        )
+        if use_official:
+            if self.backend.drawer_policy is None or self.backend.drawer_obs_adapter is None:
+                raise RuntimeError(
+                    "drawer_backend='official_joint_policy' requires a loaded policy and obs adapter"
+                )
+            return OfficialDrawerJointSkill(
+                request,
+                policy=self.backend.drawer_policy,
+                obs_adapter=self.backend.drawer_obs_adapter,
+                drawer_joint_name=self.backend.drawer_joint_name,
+                success_threshold=self.backend.drawer_success_threshold,
+            )
+        # scripted_joint baseline (also used for close_drawer)
+        return ScriptedDrawerJointSkill(request, self.backend.arm_joint_ids)
+
     def step(self, state: SceneState, dt: float) -> SkillCommand:
         if self.paused:
             return self._latched_or_safe_command(state)
@@ -139,7 +200,7 @@ class SkillExecutor:
     def pause(self, state: SceneState) -> SkillCommand:
         self.paused = True
         self.pause_started_at = state.sim_time
-        command = SkillCommand(state.robot.tcp_pose, self._current_gripper_command(), self.status)
+        command = self._hold_command(state, self.status)
         self._latch(command)
         self.status_text = "paused"
         return command
@@ -182,16 +243,32 @@ class SkillExecutor:
             f.write(result.to_json() + "\n")
 
     def _latch(self, command: SkillCommand):
+        tcp = command.tcp_pose_w
         self.latched_command = LatchedCommand(
-            tcp_pose=PoseState(
-                command.tcp_pose_w.pos_w.clone(),
-                command.tcp_pose_w.quat_w.clone(),
-            ),
+            tcp_pose=None if tcp is None else PoseState(tcp.pos_w.clone(), tcp.quat_w.clone()),
             gripper_command=float(command.gripper_command),
         )
 
+    def _hold_command(self, state: SceneState, status: ExecutionStatus) -> SkillCommand:
+        """Build a 'stay put' command appropriate to the active control mode."""
+        gripper = self._current_gripper_command()
+        if self.backend.mode == "joint":
+            arm_ids = self.backend.arm_joint_ids
+            joint_target = None if arm_ids is None else state.robot.joint_pos[arm_ids].clone()
+            return SkillCommand(
+                state.robot.tcp_pose,
+                gripper,
+                status,
+                control_mode="joint",
+                joint_target=joint_target,
+            )
+        return SkillCommand(state.robot.tcp_pose, gripper, status)
+
     def _latched_or_safe_command(self, state: SceneState) -> SkillCommand:
-        if self.latched_command is not None:
+        if self.backend.mode == "joint":
+            return self._hold_command(state, self.status)
+        # legacy IK behaviour: hold the last latched TCP pose if available
+        if self.latched_command is not None and self.latched_command.tcp_pose is not None:
             return SkillCommand(
                 self.latched_command.tcp_pose,
                 self.latched_command.gripper_command,
@@ -205,7 +282,7 @@ class SkillExecutor:
         return 1.0
 
     def _pause_active_skill(self, state: SceneState) -> None:
-        command = SkillCommand(state.robot.tcp_pose, self._current_gripper_command(), self.status)
+        command = self._hold_command(state, self.status)
         self._latch(command)
         self.paused = True
         self.pause_started_at = state.sim_time

@@ -65,6 +65,8 @@ class SceneStateProvider:
         self.env_id = env_id
         self.device = self.scene.device
         self._finger_joint_ids = self._find_joints("panda_finger_.*")
+        self._arm_joint_ids = self._find_joints("panda_joint.*")
+        self._joint_action_cache: dict | None = None
         self._sim_time = 0.0
         self._cabinet_joint_id_cache: dict[str, int] = {}
         self._cabinet_control_method: dict[str, str] = {}
@@ -129,6 +131,107 @@ class SceneStateProvider:
         if gripper_command not in (-1.0, 1.0):
             raise ValueError("gripper_command must be -1.0 or 1.0")
         return self.make_action(state.robot.tcp_pose, gripper_command)
+
+    # ------------------------------------------------------------------
+    # Joint-position action helpers (method-B joint state machine)
+    # ------------------------------------------------------------------
+    def _resolve_joint_action(self) -> dict:
+        """Resolve and cache the arm joint-position action term layout (scale/offset/indices).
+
+        The processed joint target is ``q = raw * scale + offset`` with ``offset`` cloned at action
+        term construction (``use_default_offset`` -> ``default_joint_pos``). We therefore read the
+        action term's own scale/offset rather than ``robot.data.default_joint_pos`` (which a reset
+        event may overwrite without touching the cached offset).
+        """
+        if self._joint_action_cache is not None:
+            return self._joint_action_cache
+        action_manager = self.env.unwrapped.action_manager
+        arm_term = action_manager.get_term("arm_action")
+        # location of the arm block inside the concatenated action vector
+        arm_start = 0
+        for name in action_manager.active_terms:
+            term = action_manager.get_term(name)
+            if term is arm_term:
+                break
+            arm_start += term.action_dim
+        arm_dim = arm_term.action_dim
+        scale = arm_term._scale
+        offset = arm_term._offset
+        if not isinstance(scale, torch.Tensor):
+            scale = torch.full((arm_dim,), float(scale), device=self.device)
+        else:
+            scale = scale[self.env_id].to(self.device)
+        if not isinstance(offset, torch.Tensor):
+            offset = torch.full((arm_dim,), float(offset), device=self.device)
+        else:
+            offset = offset[self.env_id].to(self.device)
+        self._joint_action_cache = {
+            "total_dim": action_manager.total_action_dim,
+            "arm_start": arm_start,
+            "arm_dim": arm_dim,
+            "gripper_index": arm_start + arm_dim,
+            "scale": scale,
+            "offset": offset,
+        }
+        print(
+            "[SceneStateProvider] joint_action_layout "
+            f"total_dim={self._joint_action_cache['total_dim']} arm_start={arm_start} arm_dim={arm_dim} "
+            f"gripper_index={self._joint_action_cache['gripper_index']} "
+            f"scale={[round(float(v), 4) for v in scale.tolist()]} "
+            f"offset={[round(float(v), 4) for v in offset.tolist()]}",
+            flush=True,
+        )
+        return self._joint_action_cache
+
+    def make_joint_action_from_q_des(self, q_des: torch.Tensor, gripper_command: float) -> torch.Tensor:
+        """Build a raw joint-position env action from absolute arm joint targets ``q_des`` [7].
+
+        Returns a ``(num_envs, total_action_dim)`` tensor. The gripper slot keeps the binary
+        convention used elsewhere (1.0 = open, -1.0 = close).
+        """
+        layout = self._resolve_joint_action()
+        if gripper_command not in (-1.0, 1.0):
+            raise ValueError("gripper_command must be -1.0 (close) or 1.0 (open)")
+        q_des = torch.as_tensor(q_des, dtype=torch.float32, device=self.device).reshape(-1)
+        if q_des.numel() != layout["arm_dim"]:
+            raise ValueError(f"q_des must have {layout['arm_dim']} entries, got {q_des.numel()}")
+        raw_arm = (q_des - layout["offset"]) / layout["scale"]
+        num_envs = self.env.unwrapped.num_envs
+        action = torch.zeros((num_envs, layout["total_dim"]), device=self.device)
+        action[:, layout["arm_start"] : layout["arm_start"] + layout["arm_dim"]] = raw_arm
+        action[:, layout["gripper_index"]] = gripper_command
+        return action
+
+    def make_joint_action_from_raw(self, raw_joint_action: torch.Tensor) -> torch.Tensor:
+        """Broadcast a learned policy's raw joint action to ``(num_envs, total_action_dim)``.
+
+        The policy output is already a raw action for the joint-position action manager; it must NOT
+        be re-interpreted as ``q_des``.
+        """
+        layout = self._resolve_joint_action()
+        num_envs = self.env.unwrapped.num_envs
+        raw = torch.as_tensor(raw_joint_action, dtype=torch.float32, device=self.device)
+        if raw.dim() == 1:
+            raw = raw.unsqueeze(0).expand(num_envs, -1).contiguous()
+        if raw.shape[-1] != layout["total_dim"]:
+            raise ValueError(
+                f"raw_joint_action last dim {raw.shape[-1]} != action_dim {layout['total_dim']}"
+            )
+        return raw
+
+    def make_hold_joint_action(self, state: SceneState, gripper_command: float | None = None) -> torch.Tensor:
+        """Hold the current arm joint position (used for pause / idle / skill switch)."""
+        layout = self._resolve_joint_action()
+        q_hold = state.robot.joint_pos[self._arm_joint_ids].to(self.device)
+        if q_hold.numel() != layout["arm_dim"]:
+            q_hold = q_hold.reshape(-1)[: layout["arm_dim"]]
+        if gripper_command is None:
+            gripper_command = 1.0 if state.robot.gripper_width > 0.05 else -1.0
+        return self.make_joint_action_from_q_des(q_hold, gripper_command)
+
+    def arm_joint_pos(self, state: SceneState) -> torch.Tensor:
+        """Current absolute arm joint positions [arm_dim] for the configured env."""
+        return state.robot.joint_pos[self._arm_joint_ids].clone()
 
     def get_cabinet_joint_pos(self, joint_name: str) -> float:
         cabinet = self.scene["cabinet"]

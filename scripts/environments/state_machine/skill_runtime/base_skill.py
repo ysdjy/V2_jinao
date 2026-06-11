@@ -16,11 +16,30 @@ from .skill_types import ExecutionStatus, FailureReason
 
 @dataclass
 class SkillCommand:
-    tcp_pose_w: PoseState
+    """Command emitted by a skill for one control step.
+
+    Two control modes are supported:
+
+    * ``"ik_pose"`` (default, legacy): ``tcp_pose_w`` + ``gripper_command`` are consumed by the
+      IK-Abs action path (``SceneStateProvider.make_action``). Used by the original
+      ``skill_test_ui.py`` and the IK-Abs skills.
+    * ``"joint"``: the command targets a joint-position env. Exactly one of ``joint_target``
+      (absolute Franka arm joint angles ``q_des`` of shape [7], from internal IK) or
+      ``raw_joint_action`` (a full raw action ready for the joint-position action manager, from a
+      learned policy) is set. ``tcp_pose_w`` is kept only for debug / visualization.
+
+    ``drawer_joint_target`` defaults to ``None`` and must stay ``None`` for the learned
+    open-drawer policy (it may only be set by the explicit scripted-joint baseline).
+    """
+
+    tcp_pose_w: PoseState | None
     gripper_command: float
     status: ExecutionStatus
     drawer_joint_name: str | None = None
     drawer_joint_target: float | None = None
+    control_mode: str = "ik_pose"
+    joint_target: torch.Tensor | None = None
+    raw_joint_action: torch.Tensor | None = None
 
 
 @dataclass

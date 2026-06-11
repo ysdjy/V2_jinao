@@ -24,6 +24,15 @@ gym.register(
 )
 
 gym.register(
+    id="Isaac-Stack-Cube-Franka-JointPolicy-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.stack_joint_policy_env_cfg:FrankaCubeStackJointPolicyEnvCfg",
+    },
+    disable_env_checker=True,
+)
+
+gym.register(
     id="Isaac-Stack-Cube-Instance-Randomize-Franka-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     kwargs={
