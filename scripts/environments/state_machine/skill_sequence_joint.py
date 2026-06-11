@@ -50,6 +50,7 @@ parser.add_argument("--drawer_policy_path", type=str, default=None, help="TorchS
 parser.add_argument("--drawer_joint_name", type=str, default="joint_0", help="Cabinet drawer joint to read for success.")
 parser.add_argument("--drawer_success_threshold", type=float, default=0.20, help="Drawer-open success threshold (m).")
 parser.add_argument("--max_steps", type=int, default=3000, help="Global hard cap on sim steps.")
+parser.add_argument("--log_every", type=int, default=30, help="Low-frequency debug log interval (sim steps).")
 parser.add_argument("--disable_fabric", action="store_true", default=False, help="Disable fabric and use USD I/O.")
 parser.add_argument("--show_affordance_debug", action="store_true", default=False, help="Show affordance debug frames.")
 parser.add_argument(
@@ -72,7 +73,9 @@ import isaaclab_tasks  # noqa: F401
 from isaaclab_tasks.utils.parse_cfg import parse_env_cfg
 
 from skill_runtime.drawer_obs_adapter import DrawerObsAdapter
+from skill_runtime.drawer_target_config import DRAWER_TARGETS
 from skill_runtime.ik_joint_adapter import IKJointAdapter
+from skill_runtime.joint_debug_logger import JointDebugLogger
 from skill_runtime.official_drawer_policy import OfficialDrawerPolicyWrapper
 from skill_runtime.scene_state_provider import SceneStateProvider
 from skill_runtime.simple_scene_layout import SimpleSceneLayoutManager
@@ -123,7 +126,8 @@ def _make_request(skill_type: SkillType, target: str) -> SkillRequest:
             source_object=None,
             destination_type="drawer",
             destination_object=target or "bottom_drawer",
-            parameters={"drawer_link": "link_1", "drawer_joint": "joint_0"},
+            # joint is resolved from the central target->joint config inside the drawer skill
+            parameters={},
         )
     return SkillRequest(request_id=rid, skill_type=skill_type, source_object=target)
 
@@ -201,6 +205,8 @@ def main():
         drawer_success_threshold=args_cli.drawer_success_threshold,
     )
     executor = SkillExecutor(registry, backend=backend)
+    debug_logger = JointDebugLogger(every_steps=args_cli.log_every)
+    baseline_warned = {"done": False}
 
     sim_dt = env_cfg.sim.dt * env_cfg.decimation
     sim_time = 0.0
@@ -234,10 +240,18 @@ def main():
             with torch.inference_mode():
                 command = executor.step(state, sim_dt)
                 if command.drawer_joint_target is not None:
+                    if not baseline_warned["done"]:
+                        print(
+                            "[BASELINE] scripted_joint is directly commanding drawer joint, "
+                            "not learned physical pulling.",
+                            flush=True,
+                        )
+                        baseline_warned["done"] = True
                     provider.set_cabinet_joint_target(
                         command.drawer_joint_name or "joint_0", command.drawer_joint_target
                     )
                 action = _command_to_action(provider, command, state)
+                debug_logger.maybe_log(step_count, executor, command, state)
                 env.step(action)
             sim_time += sim_dt
             step_count += 1
@@ -246,7 +260,11 @@ def main():
 
         final_state = provider.get_state()
         cabinet = final_state.objects.get("cabinet")
-        drawer_joint_pos = None if cabinet is None else cabinet.joint_pos.get(args_cli.drawer_joint_name)
+        # success joint follows the target drawer (top=joint_0, middle=joint_2, bottom=joint_1)
+        success_joint = args_cli.drawer_joint_name
+        if skill_type in (SkillType.OPEN_DRAWER, SkillType.CLOSE_DRAWER):
+            success_joint = DRAWER_TARGETS.get(target, {}).get("joint_name", args_cli.drawer_joint_name)
+        drawer_joint_pos = None if cabinet is None else cabinet.joint_pos.get(success_joint)
         runtime = getattr(active, "runtime", None)
         record = {
             "sequence_id": sequence_id,

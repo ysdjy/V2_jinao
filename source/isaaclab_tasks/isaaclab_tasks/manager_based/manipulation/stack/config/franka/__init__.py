@@ -33,6 +33,26 @@ gym.register(
 )
 
 gym.register(
+    id="Isaac-Open-CustomDrawer-Selected-Franka-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.custom_drawer_selected_env_cfg:FrankaCustomDrawerSelectedEnvCfg",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_custom_drawer_ppo_cfg:CustomDrawerSelectedPPORunnerCfg",
+    },
+    disable_env_checker=True,
+)
+
+gym.register(
+    id="Isaac-Open-CustomDrawer-Selected-Franka-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.custom_drawer_selected_env_cfg:FrankaCustomDrawerSelectedEnvCfg_PLAY",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_custom_drawer_ppo_cfg:CustomDrawerSelectedPPORunnerCfg",
+    },
+    disable_env_checker=True,
+)
+
+gym.register(
     id="Isaac-Stack-Cube-Instance-Randomize-Franka-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     kwargs={

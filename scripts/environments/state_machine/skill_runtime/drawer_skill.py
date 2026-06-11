@@ -11,9 +11,14 @@ from .skill_result import SkillResult
 from .skill_types import ExecutionStatus, FailureReason, SkillType
 
 
+from .drawer_target_config import DRAWER_TARGETS
+
 DRAWER_CONTROL_MODE = "scripted_joint"
 BOTTOM_DRAWER_LINK = "link_1"
-BOTTOM_DRAWER_JOINT = "joint_0"
+BOTTOM_DRAWER_JOINT = "joint_1"  # confirmed by debug_drawer_joint_scan: bottom drawer = joint_1
+
+# target_drawer -> cabinet joint, from the confirmed central config (top=joint_0, middle=joint_2, bottom=joint_1)
+DRAWER_JOINT_BY_TARGET = {name: cfg["joint_name"] for name, cfg in DRAWER_TARGETS.items()}
 
 
 @dataclass
@@ -134,16 +139,16 @@ class DrawerSkill:
         if not self.cfg.use_scripted_joint_control:
             self._fail(state, FailureReason.REQUEST_INVALID, "scripted joint control is disabled")
             return False
-        if self.request.destination_object not in (None, "bottom_drawer"):
-            self._fail(state, FailureReason.REQUEST_INVALID, "only bottom_drawer is supported")
+        dest = self.request.destination_object or "bottom_drawer"
+        if dest not in DRAWER_JOINT_BY_TARGET:
+            self._fail(
+                state,
+                FailureReason.REQUEST_INVALID,
+                f"unsupported drawer target: {dest}; supported={list(DRAWER_JOINT_BY_TARGET)}",
+            )
             return False
-        if self.request.parameters.get("drawer_link", BOTTOM_DRAWER_LINK) != BOTTOM_DRAWER_LINK:
-            self._fail(state, FailureReason.REQUEST_INVALID, "only link_1 is supported")
-            return False
-        joint_name = self.request.parameters.get("drawer_joint", BOTTOM_DRAWER_JOINT)
-        if joint_name != BOTTOM_DRAWER_JOINT:
-            self._fail(state, FailureReason.REQUEST_INVALID, "only joint_0 is supported")
-            return False
+        # explicit drawer_joint param overrides the target->joint mapping
+        joint_name = self.request.parameters.get("drawer_joint") or DRAWER_JOINT_BY_TARGET[dest]
         cabinet = state.objects.get("cabinet")
         if cabinet is None:
             self._fail(state, FailureReason.TARGET_LOST, "cabinet state missing")

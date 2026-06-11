@@ -27,17 +27,39 @@ from isaaclab_tasks.manager_based.manipulation.stack import mdp
 
 from . import stack_joint_pos_env_cfg
 
+##
+# Pre-defined configs
+##
+from isaaclab_assets.robots.franka import FRANKA_PANDA_HIGH_PD_CFG  # isort: skip
+
 
 @configclass
 class FrankaCubeStackJointPolicyEnvCfg(stack_joint_pos_env_cfg.FrankaCubeStackEnvCfg):
-    """Joint-position stack scene tuned to match the official drawer-policy action contract."""
+    """Joint-position stack scene for the method-B joint-action state machine.
+
+    Priority: faithfully reproduce the IK-Abs grasp/place behaviour through joint-position control.
+    We therefore use the SAME stiff PD robot as the IK-Abs env (``FRANKA_PANDA_HIGH_PD_CFG``: stiffer
+    PD + gravity disabled on the arm) so the arm tracks the IK ``q_des`` tightly and does not sag.
+
+    NOTE: this stiff-PD / gravity-off robot differs from the soft-PD robot used to train the official
+    open-drawer PPO policy. The learned-drawer backend is currently deprioritized; revisit the robot
+    config (e.g. a dedicated env or re-enabling gravity) when re-integrating that policy.
+
+    Arm action keeps ``scale=1.0, use_default_offset=True`` so q_des -> raw is a clean offset.
+    """
 
     def __post_init__(self):
         # post init of parent (builds the full stack + cabinet + knife scene)
         super().__post_init__()
 
-        # Match the official open-drawer PPO action scale (1.0) so a learned joint policy
-        # and the internal IK skills share one action contract on this env.
+        # Stiff PD robot (matches stack_ik_abs_env_cfg) for tight joint tracking, no sag.
+        self.scene.robot = FRANKA_PANDA_HIGH_PD_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot.spawn.usd_path = stack_joint_pos_env_cfg._repo_path(
+            "Connection/assets/Isaac/IsaacLab/Robots/FrankaEmika/panda_instanceable.usd"
+        )
+        self.scene.robot.spawn.semantic_tags = [("class", "robot")]
+
+        # Match the official open-drawer PPO action scale (1.0); also gives a clean q_des->raw map.
         self.actions.arm_action = mdp.JointPositionActionCfg(
             asset_name="robot",
             joint_names=["panda_joint.*"],
