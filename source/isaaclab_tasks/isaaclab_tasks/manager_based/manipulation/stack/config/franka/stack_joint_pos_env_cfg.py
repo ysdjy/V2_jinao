@@ -32,7 +32,22 @@ KNIFE_HANDLE_PROXY_OFFSET = (0.18304, 0.01413, -0.02520)
 KNIFE_HANDLE_PROXY_SIZE = (0.98, 0.24, 0.20)
 CABINET_BOTTOM_DRAWER_LINK = "link_1"
 CABINET_BOTTOM_HANDLE_PROXY_OFFSET = (0.11946, 0.01491, 1.06183)
-CABINET_BOTTOM_HANDLE_PROXY_SIZE = (0.24, 0.08, 0.10 / 3.0)
+# Thin handle-bar collision proxy (link-local size; world size = this * cabinet scale 0.62).
+# Long axis (local X) halved per request: (0.10, 0.028, 0.028) -> world ~(0.062, 0.017, 0.017) m.
+CABINET_BOTTOM_HANDLE_PROXY_SIZE = (0.10, 0.028, 0.028)
+
+# Top/middle drawer handle proxies (visible collision boxes), mirroring the bottom one.
+# Position = calibrated handle offset (link BODY frame, from debug_drawer_handle_calib.py) divided by
+# the cabinet USD scale, because the proxy is a child of the link prim (pre-scale local frame).
+from .custom_drawer_config import HANDLE_LOCAL_OFFSET as _HANDLE_OFFSET  # noqa: E402
+
+CABINET_SCALE = 0.62
+CABINET_TOP_DRAWER_LINK = "link_0"
+CABINET_MIDDLE_DRAWER_LINK = "link_2"
+CABINET_TOP_HANDLE_PROXY_OFFSET = tuple(v / CABINET_SCALE for v in _HANDLE_OFFSET["top_drawer"])
+CABINET_MIDDLE_HANDLE_PROXY_OFFSET = tuple(v / CABINET_SCALE for v in _HANDLE_OFFSET["middle_drawer"])
+# same slim handle-bar size for all three drawers (see CABINET_BOTTOM_HANDLE_PROXY_SIZE note)
+CABINET_HANDLE_PROXY_SIZE = CABINET_BOTTOM_HANDLE_PROXY_SIZE
 
 
 def _repo_path(relative_path: str) -> str:
@@ -194,8 +209,11 @@ class FrankaCubeStackEnvCfg(StackEnvCfg):
                 semantic_tags=[("class", "cabinet")],
             ),
             init_state=ArticulationCfg.InitialStateCfg(
-                pos=(1.0, -0.8, 0.323),  # shifted +0.15 world-X, -0.15 world-Y to clear the arm during drawer opening
-                rot=(1.0, 0.0, 0.0, 0.0),
+                # Matches the user's fixed scene (saved_scenes/v0_layout/scene_v0_*.usd): cabinet placed
+                # within the arm's workspace, yaw +90deg about Z so the drawers open toward -Y (toward
+                # the robot) and the handles are reachable.
+                pos=(0.27402, 0.91583, 0.323),
+                rot=(0.70710678, 0.0, 0.0, 0.70710678),
                 joint_pos={".*": 0.0},
                 joint_vel={".*": 0.0},
             ),
@@ -224,6 +242,29 @@ class FrankaCubeStackEnvCfg(StackEnvCfg):
                 collision_props=sim_utils.CollisionPropertiesCfg(contact_offset=0.002, rest_offset=0.0),
                 visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.05, 0.9, 1.0), opacity=0.35),
             ),
+        )
+
+        # visible collision proxies for the TOP and MIDDLE drawer handles (bottom already has one)
+        def _handle_proxy(link: str, name: str, offset, color):
+            return AssetBaseCfg(
+                prim_path="{ENV_REGEX_NS}/Cabinet/" + link + "/" + name,
+                init_state=AssetBaseCfg.InitialStateCfg(pos=offset),
+                spawn=sim_utils.CuboidCfg(
+                    size=CABINET_HANDLE_PROXY_SIZE,
+                    visible=True,
+                    physics_material=sim_utils.RigidBodyMaterialCfg(
+                        static_friction=1.0, dynamic_friction=1.0, restitution=0.0, friction_combine_mode="max"
+                    ),
+                    collision_props=sim_utils.CollisionPropertiesCfg(contact_offset=0.002, rest_offset=0.0),
+                    visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=color, opacity=0.35),
+                ),
+            )
+
+        self.scene.cabinet_top_handle_proxy = _handle_proxy(
+            CABINET_TOP_DRAWER_LINK, "TopHandleProxy", CABINET_TOP_HANDLE_PROXY_OFFSET, (1.0, 0.4, 0.05)
+        )
+        self.scene.cabinet_middle_handle_proxy = _handle_proxy(
+            CABINET_MIDDLE_DRAWER_LINK, "MiddleHandleProxy", CABINET_MIDDLE_HANDLE_PROXY_OFFSET, (0.4, 1.0, 0.05)
         )
 
         self.scene.knife = ArticulationCfg(
@@ -273,6 +314,41 @@ class FrankaCubeStackEnvCfg(StackEnvCfg):
                 collision_props=sim_utils.CollisionPropertiesCfg(contact_offset=0.004, rest_offset=0.0),
                 visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 0.75, 0.05), opacity=0.35),
             ),
+        )
+
+        # Coffee machine prop — matches the user's fixed scene (saved_scenes/v0_layout): a fixed-base
+        # articulation placed on the -Y side, yaw -90deg about Z, scale 0.2. It is a scene
+        # obstacle/prop (not a manipulation target); its joints are held by a soft implicit actuator.
+        self.scene.coffee_machine = ArticulationCfg(
+            prim_path="{ENV_REGEX_NS}/CoffeeMachine",
+            spawn=UsdFileCfg(
+                usd_path=_repo_path("SapienAssetPipeline/usd_assets/CoffeeMachine_103046/coffeemachine.usd"),
+                scale=(0.2, 0.2, 0.2),
+                activate_contact_sensors=False,
+                rigid_props=RigidBodyPropertiesCfg(disable_gravity=False, max_depenetration_velocity=5.0),
+                articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+                    enabled_self_collisions=False,
+                    solver_position_iteration_count=12,
+                    solver_velocity_iteration_count=1,
+                ),
+                collision_props=sim_utils.CollisionPropertiesCfg(contact_offset=0.005, rest_offset=0.0),
+                semantic_tags=[("class", "coffee_machine")],
+            ),
+            init_state=ArticulationCfg.InitialStateCfg(
+                pos=(0.43151966, -0.48372657, 0.135),
+                rot=(0.70710678, 0.0, 0.0, -0.70710678),
+                joint_pos={".*": 0.0},
+                joint_vel={".*": 0.0},
+            ),
+            actuators={
+                "all_joints": ImplicitActuatorCfg(
+                    joint_names_expr=["joint_.*"],
+                    effort_limit_sim=50.0,
+                    velocity_limit_sim=100.0,
+                    stiffness=100.0,
+                    damping=10.0,
+                ),
+            },
         )
 
         # Listens to the required transforms

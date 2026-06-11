@@ -18,9 +18,11 @@ from isaaclab.utils import math as math_utils
 
 
 # Unified with the RL training env cfg (stack_joint_pos_env_cfg.py cabinet init pos) so the learned
-# drawer policy sees the SAME cabinet pose in training and deployment.
-CABINET_LOCAL_X = 1.0
-CABINET_LOCAL_Y = -0.8
+# drawer policy sees the SAME cabinet pose in training and deployment. Matches the user's fixed scene
+# (saved_scenes/v0_layout): cabinet within the arm workspace, yaw +90deg (carried by the cfg
+# default quaternion, so CABINET_YAW_PI stays False).
+CABINET_LOCAL_X = 0.27402
+CABINET_LOCAL_Y = 0.91583
 CABINET_Z_CORRECTION = 0.0
 CABINET_YAW_PI = False
 
@@ -31,7 +33,26 @@ OBJECT_SLOTS = {
     "slot_d": (0.66, -0.40),
 }
 
+# User-defined placement region (world XY quadrilateral). cube_1/2/3 and knife are randomly
+# initialized inside this convex polygon, with rejection sampling + min separation to avoid
+# interference (mirrors isaaclab franka_stack_events.sample_object_poses). Corners are ordered CCW.
+PLACEMENT_REGION = [(0.15, -0.30), (0.58, -0.30), (0.70, 0.25), (0.22, 0.37)]
+PLACE_MIN_SEPARATION = 0.15
+PLACE_MAX_TRIES = 5000
+
 MIN_MOVABLE_DISTANCE = 0.14
+
+
+def _point_in_region(x: float, y: float, polygon=PLACEMENT_REGION) -> bool:
+    """True if (x, y) is inside the convex CCW polygon (on-edge counts as inside)."""
+    n = len(polygon)
+    for i in range(n):
+        ax, ay = polygon[i]
+        bx, by = polygon[(i + 1) % n]
+        # cross product of edge (A->B) and (A->P); >= 0 for all edges => inside (CCW)
+        if (bx - ax) * (y - ay) - (by - ay) * (x - ax) < -1e-9:
+            return False
+    return True
 
 
 @dataclass
@@ -91,40 +112,45 @@ class SimpleSceneLayoutManager:
             quaternion = math_utils.quat_mul(yaw_quat.unsqueeze(0), quaternion.unsqueeze(0))[0]
         return self._write_root_pose("cabinet", local_position, quaternion)
 
+    def _sample_region_xy(self, rng: random.Random, count: int) -> list[tuple[float, float]]:
+        """Rejection-sample ``count`` (x, y) points inside PLACEMENT_REGION with min separation.
+
+        Mirrors isaaclab franka_stack_events.sample_object_poses: sample in the polygon bounding box,
+        reject points outside the polygon or closer than PLACE_MIN_SEPARATION to already-accepted
+        points; accept the last try unconditionally to guarantee progress.
+        """
+        xs = [p[0] for p in PLACEMENT_REGION]
+        ys = [p[1] for p in PLACEMENT_REGION]
+        x_min, x_max, y_min, y_max = min(xs), max(xs), min(ys), max(ys)
+        points: list[tuple[float, float]] = []
+        for _ in range(count):
+            for j in range(PLACE_MAX_TRIES):
+                x = rng.uniform(x_min, x_max)
+                y = rng.uniform(y_min, y_max)
+                if not _point_in_region(x, y):
+                    continue
+                far_enough = all(math.dist((x, y), p) > PLACE_MIN_SEPARATION for p in points)
+                if not points or far_enough or j == PLACE_MAX_TRIES - 1:
+                    points.append((x, y))
+                    break
+        return points
+
     def _place_cubes_and_knife(self, rng: random.Random) -> dict[str, list[float]]:
-        cube_names = ["cube_1", "cube_2", "cube_3"]
-        cube_slots = [OBJECT_SLOTS["slot_a"], OBJECT_SLOTS["slot_b"], OBJECT_SLOTS["slot_c"]]
-        rng.shuffle(cube_slots)
+        names = ["cube_1", "cube_2", "cube_3", "knife"]
+        samples = self._sample_region_xy(rng, len(names))
 
         planned: dict[str, _PlannedPose] = {}
-        assigned_slots: dict[str, tuple[float, float]] = {}
-        for name, slot in zip(cube_names, cube_slots):
-            assigned_slots[name] = slot
-            x = slot[0] + rng.uniform(-0.015, 0.015)
-            y = slot[1] + rng.uniform(-0.015, 0.015)
+        knife_default_quat = self.scene["knife"].data.default_root_state[self.env_id, 3:7].clone()
+        for name, (x, y) in zip(names, samples):
             yaw = rng.uniform(-math.pi, math.pi)
+            if name == "knife":
+                quat = math_utils.quat_mul(self._yaw_quat(yaw).unsqueeze(0), knife_default_quat.unsqueeze(0))[0]
+            else:
+                quat = self._yaw_quat(yaw)
             planned[name] = _PlannedPose(
                 local_position=self._default_local_position(name, x, y),
-                quaternion=self._yaw_quat(yaw),
+                quaternion=quat,
             )
-
-        knife_slot = OBJECT_SLOTS["slot_d"]
-        assigned_slots["knife"] = knife_slot
-        knife_yaw = rng.uniform(-math.pi, math.pi)
-        knife_default_quat = self.scene["knife"].data.default_root_state[self.env_id, 3:7].clone()
-        knife_yaw_quat = self._yaw_quat(knife_yaw)
-        planned["knife"] = _PlannedPose(
-            local_position=self._default_local_position(
-                "knife",
-                knife_slot[0] + rng.uniform(-0.020, 0.020),
-                knife_slot[1] + rng.uniform(-0.020, 0.020),
-            ),
-            quaternion=math_utils.quat_mul(knife_yaw_quat.unsqueeze(0), knife_default_quat.unsqueeze(0))[0],
-        )
-
-        if self._minimum_movable_distance(planned) < MIN_MOVABLE_DISTANCE:
-            for name, slot in assigned_slots.items():
-                planned[name].local_position[:2] = torch.tensor(slot, dtype=torch.float32, device=self.device)
 
         object_poses = {name: self._write_root_pose(name, pose.local_position, pose.quaternion) for name, pose in planned.items()}
         return object_poses
@@ -178,12 +204,10 @@ class SimpleSceneLayoutManager:
         movable = {name: object_poses[name] for name in ("cube_1", "cube_2", "cube_3", "knife")}
         for name, pose in movable.items():
             x, y = pose[0], pose[1]
-            if not (0.35 <= x <= 0.75):
-                raise ValueError(f"{name} x outside safe range: {x:.3f}")
-            if y >= -0.05:
-                raise ValueError(f"{name} must stay on the right side, got y={y:.3f}")
             if not all(math.isfinite(value) for value in pose):
                 raise ValueError(f"{name} has non-finite pose: {pose}")
+            if not _point_in_region(x, y):
+                raise ValueError(f"{name} sampled outside placement region: ({x:.3f}, {y:.3f})")
 
         min_distance = self._minimum_movable_distance(
             {

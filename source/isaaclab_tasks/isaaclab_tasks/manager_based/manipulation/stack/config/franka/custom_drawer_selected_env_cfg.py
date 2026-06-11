@@ -31,6 +31,7 @@ from isaaclab.utils import configclass
 from isaaclab_tasks.manager_based.manipulation.stack.mdp import franka_stack_events
 
 from . import custom_drawer_mdp as cd_mdp
+from .custom_drawer_config import DRAWER_TARGETS
 from .stack_joint_policy_env_cfg import FrankaCubeStackJointPolicyEnvCfg
 
 from isaaclab.markers.config import FRAME_MARKER_CFG  # isort: skip
@@ -116,10 +117,14 @@ class FrankaCustomDrawerSelectedEnvCfg(FrankaCubeStackJointPolicyEnvCfg):
             visualizer_cfg=marker,
             target_frames=[
                 FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Cabinet/link_0", name="top_drawer_handle", offset=OffsetCfg()
+                    prim_path="{ENV_REGEX_NS}/Cabinet/link_0",
+                    name="top_drawer_handle",
+                    offset=OffsetCfg(pos=tuple(DRAWER_TARGETS["top_drawer"]["handle_offset"])),
                 ),
                 FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Cabinet/link_2", name="middle_drawer_handle", offset=OffsetCfg()
+                    prim_path="{ENV_REGEX_NS}/Cabinet/link_2",
+                    name="middle_drawer_handle",
+                    offset=OffsetCfg(pos=tuple(DRAWER_TARGETS["middle_drawer"]["handle_offset"])),
                 ),
             ],
         )

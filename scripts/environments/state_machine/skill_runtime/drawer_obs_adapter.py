@@ -115,6 +115,8 @@ class SelectedDrawerObsAdapter:
         self.cabinet = self.scene["cabinet"]
         self.joint_name = cfg["joint_name"]
         self.link_name = cfg["link_name"]
+        # SAME front-face handle offset used by the training FrameTransformer (link-local frame)
+        self.handle_offset = torch.tensor(cfg["handle_offset"], dtype=torch.float32, device=self.device)
 
         jnames = list(getattr(self.cabinet.data, "joint_names", []))
         self._joint_id = jnames.index(self.joint_name)
@@ -125,7 +127,11 @@ class SelectedDrawerObsAdapter:
         self.last_obs_dim: int | None = None
 
     def selected_handle_pos_w(self) -> torch.Tensor:
-        return self.cabinet.data.body_pos_w[:, self._link_idx]
+        link_pos = self.cabinet.data.body_pos_w[:, self._link_idx]
+        link_quat = self.cabinet.data.body_quat_w[:, self._link_idx]
+        offset = self.handle_offset.unsqueeze(0).expand(link_pos.shape[0], -1)
+        handle_pos, _ = math_utils.combine_frame_transforms(link_pos, link_quat, offset)
+        return handle_pos
 
     def selected_drawer_joint_pos(self) -> float:
         return float(self.cabinet.data.joint_pos[self.env_id, self._joint_id])

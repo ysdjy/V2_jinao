@@ -19,12 +19,23 @@ from __future__ import annotations
 
 CABINET_USD_SCALE = 0.62
 
+# Front-face / graspable handle offset in each drawer LINK's local frame, calibrated by
+# debug_drawer_handle_calib.py (handle = mesh AABB min world-X face center, drawers open toward -X).
+# This SAME offset is applied in training (drawer_frames FrameTransformer + custom_drawer_mdp via the
+# sensor) and deployment (SelectedDrawerObsAdapter), so handle poses match across train/deploy.
+HANDLE_LOCAL_OFFSET = {
+    "top_drawer": (-0.0733, -0.0053, 0.0308),
+    "middle_drawer": (0.0306, 0.0389, 0.6737),
+    "bottom_drawer": (0.0, 0.0, 0.0),  # locked / unused
+}
+
 DRAWER_TARGETS = {
     "top_drawer": {
         "display_name_zh": "上抽屉",
         "joint_name": "joint_0",
         "link_name": "link_0",
         "handle_frame": "top_drawer_handle",
+        "handle_offset": HANDLE_LOCAL_OFFSET["top_drawer"],
         "success_threshold": 0.20,
         "closed_pos": 0.0,
         "open_direction": 1,
@@ -35,6 +46,7 @@ DRAWER_TARGETS = {
         "joint_name": "joint_2",
         "link_name": "link_2",
         "handle_frame": "middle_drawer_handle",
+        "handle_offset": HANDLE_LOCAL_OFFSET["middle_drawer"],
         "success_threshold": 0.20,
         "closed_pos": 0.0,
         "open_direction": 1,
@@ -45,6 +57,7 @@ DRAWER_TARGETS = {
         "joint_name": "joint_1",
         "link_name": "link_1",
         "handle_frame": "bottom_drawer_handle",
+        "handle_offset": HANDLE_LOCAL_OFFSET["bottom_drawer"],
         "success_threshold": 0.20,
         "closed_pos": 0.0,
         "open_direction": 1,

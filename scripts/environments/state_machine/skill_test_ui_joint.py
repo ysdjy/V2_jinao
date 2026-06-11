@@ -43,10 +43,10 @@ parser.add_argument(
     "--drawer_backend",
     type=str,
     default="none",
-    choices=["none", "scripted_joint", "official_joint_policy", "custom_selected_policy"],
-    help="Drawer backend. Default 'none' (Open Drawer disabled) so scripted_joint is not mistaken "
-    "for a learned skill. scripted_joint = direct drawer-joint baseline (robot does NOT physically "
-    "pull). custom_selected_policy = learned policy. Never auto-runs.",
+    choices=["none", "scripted_joint", "official_joint_policy", "custom_selected_policy", "ik_pull"],
+    help="Drawer backend. Default 'none' (Open Drawer disabled). ik_pull = physical open/close via IK "
+    "grasp+pull (no policy). scripted_joint = direct drawer-joint baseline (arm holds still). "
+    "custom_selected_policy = learned policy. Never auto-runs.",
 )
 parser.add_argument("--drawer_policy_path", type=str, default=None, help="TorchScript policy.pt for the learned drawer backend.")
 parser.add_argument("--log_every", type=int, default=30, help="Low-frequency debug log interval (sim steps).")
@@ -74,7 +74,8 @@ from isaaclab_tasks.utils.parse_cfg import parse_env_cfg
 
 from skill_runtime.base_skill import pose_tensor
 from skill_runtime.debug_visualizer import DebugVisualizer, OBJECT_AXIS_LENGTH, OBJECT_AXIS_WIDTH
-from skill_runtime.drawer_obs_adapter import DrawerObsAdapter
+from skill_runtime.drawer_obs_adapter import DrawerObsAdapter, SelectedDrawerObsAdapter
+from skill_runtime.drawer_target_config import functional_drawers
 from skill_runtime.ik_joint_adapter import IKJointAdapter
 from skill_runtime.joint_debug_logger import JointDebugLogger
 from skill_runtime.official_drawer_policy import OfficialDrawerPolicyWrapper
@@ -96,17 +97,19 @@ SKILL_LABELS = [
     ("Close Drawer", SkillType.CLOSE_DRAWER),
 ]
 
-# 下抽屉 / 中抽屉 / 上抽屉
+# ASCII labels only — omni.ui's ComboBox font cannot render CJK (shows "???").
 DRAWER_TARGETS = [
-    ("下抽屉 (bottom_drawer)", "bottom_drawer"),
-    ("中抽屉 (middle_drawer)", "middle_drawer"),
-    ("上抽屉 (top_drawer)", "top_drawer"),
+    ("Bottom Drawer (bottom_drawer)", "bottom_drawer"),
+    ("Middle Drawer (middle_drawer)", "middle_drawer"),
+    ("Top Drawer (top_drawer)", "top_drawer"),
 ]
 
+# 4 place points; adjust their xyz via the UI, then read the values back.
 DEFAULT_PLACE_POINTS = {
     "point_a": [0.42, 0.10, 0.00],
     "point_b": [0.55, 0.10, 0.00],
     "point_c": [0.68, 0.10, 0.00],
+    "point_d": [0.55, 0.20, 0.00],
 }
 POINT_X_MIN = 0.30
 POINT_X_MAX = 0.75
@@ -117,7 +120,7 @@ POINT_Z_MAX = 0.60
 PLACE_POINT_VISUAL_Z_OFFSET = 0.005
 PLACE_POINT_AXIS_LENGTH = 0.035
 PLACE_POINT_AXIS_WIDTH = 0.002
-PLACE_MOVE_STEPS = [("1 cm", 0.010), ("5 cm", 0.050)]
+PLACE_MOVE_STEPS = [("1 cm", 0.010), ("5 cm", 0.050), ("10 cm", 0.100)]
 
 
 def enable_collision_debug_visualization():
@@ -248,10 +251,11 @@ class SkillTestWindow:
         self.place_move_step = PLACE_MOVE_STEPS[index][1]
 
     def _move_place_point(self, x_dir: float, y_dir: float, z_dir: float):
+        # no clamping: place points can be moved freely in world space
         point = self.place_points[self.selected_place_point]
-        point[0] = _clamp(point[0] + x_dir * self.place_move_step, POINT_X_MIN, POINT_X_MAX)
-        point[1] = _clamp(point[1] + y_dir * self.place_move_step, POINT_Y_MIN, POINT_Y_MAX)
-        point[2] = _clamp(point[2] + z_dir * self.place_move_step, POINT_Z_MIN, POINT_Z_MAX)
+        point[0] = point[0] + x_dir * self.place_move_step
+        point[1] = point[1] + y_dir * self.place_move_step
+        point[2] = point[2] + z_dir * self.place_move_step
 
     def _reset_place_point(self):
         self.place_points[self.selected_place_point] = list(DEFAULT_PLACE_POINTS[self.selected_place_point])
@@ -291,10 +295,10 @@ class SkillTestWindow:
                     "robot arm will hold still.",
                     flush=True,
                 )
-            if backend == "custom_selected_policy" and target == "bottom_drawer":
+            if backend in ("custom_selected_policy", "ik_pull") and target == "bottom_drawer":
                 print(
-                    "[UI][WARNING] bottom_drawer is currently locked / non-functional; "
-                    "train/test top and middle first.",
+                    "[UI][WARNING] bottom_drawer is currently locked / non-functional in the asset; "
+                    "top and middle work. Proceeding anyway (it will likely fail).",
                     flush=True,
                 )
             self.controller.queue_request(_make_request(self.controller.selected_skill, target))
@@ -461,8 +465,12 @@ def main():
         env_cfg.events.randomize_cube_positions = None
     if hasattr(env_cfg.scene, "cabinet") and hasattr(env_cfg.scene.cabinet, "actuators"):
         if "drawers" in env_cfg.scene.cabinet.actuators:
-            env_cfg.scene.cabinet.actuators["drawers"].stiffness = 10.0
-            env_cfg.scene.cabinet.actuators["drawers"].damping = 1.0
+            if args_cli.drawer_backend == "ik_pull":
+                env_cfg.scene.cabinet.actuators["drawers"].stiffness = 0.0
+                env_cfg.scene.cabinet.actuators["drawers"].damping = 2.0
+            else:
+                env_cfg.scene.cabinet.actuators["drawers"].stiffness = 10.0
+                env_cfg.scene.cabinet.actuators["drawers"].damping = 1.0
     if hasattr(env_cfg.scene, "knife") and hasattr(env_cfg.scene.knife, "actuators"):
         if "blade_lock" in env_cfg.scene.knife.actuators:
             env_cfg.scene.knife.actuators["blade_lock"].stiffness = 100.0
@@ -503,6 +511,8 @@ def main():
     executor = SkillExecutor(registry, backend=backend)
     debug_logger = JointDebugLogger(every_steps=args_cli.log_every)
     baseline_warned = {"done": False}
+    # top/middle front-face handle frames for visualization (calibrated offsets from central config)
+    handle_adapters = {d: SelectedDrawerObsAdapter(env, d) for d in functional_drawers()}
 
     controller = UIController()
     controller.selected_skill = _skill_type_from_arg(args_cli.skill)
@@ -564,6 +574,7 @@ def main():
 
             place_points = window.place_points if window is not None else DEFAULT_PLACE_POINTS
             _update_debug_visuals(visualizer, state, executor, place_points)
+            _draw_handle_markers(visualizer, handle_adapters)
             if window is not None:
                 window.update(state, executor, layout_result)
 
@@ -582,6 +593,19 @@ def main():
                 break
 
     env.close()
+
+
+def _draw_handle_markers(visualizer: DebugVisualizer, handle_adapters: dict):
+    """Draw the calibrated top/middle front-face handle frames."""
+    for target, adapter in handle_adapters.items():
+        try:
+            handle = adapter.selected_handle_pos_w()[0]
+        except Exception:
+            continue
+        quat = torch.tensor([1.0, 0.0, 0.0, 0.0], dtype=torch.float32, device=handle.device)
+        visualizer.update_pose(
+            f"handle_{target}", torch.cat((handle, quat)), axis_length=0.05, axis_width=0.0025
+        )
 
 
 def _update_debug_visuals(

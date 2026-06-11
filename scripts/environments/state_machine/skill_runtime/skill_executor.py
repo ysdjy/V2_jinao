@@ -11,8 +11,10 @@ import torch
 from isaaclab.utils import math as math_utils
 
 from .base_skill import SkillCommand
+from .close_drawer_skill import CloseDrawerIKSkill
 from .custom_drawer_joint_skill import CustomDrawerJointSkill
 from .drawer_skill import DrawerSkill
+from .open_drawer_skill import OpenDrawerIKSkill
 from .grasp_skill import GraspSkill
 from .grasp_joint_skill import GraspJointSkill
 from .official_drawer_joint_skill import OfficialDrawerJointSkill
@@ -174,6 +176,13 @@ class SkillExecutor:
             return DrawerSkill(request)
         is_open = request.skill_type == SkillType.OPEN_DRAWER
         backend = self.backend.drawer_backend
+        if backend == "ik_pull":
+            # physical open/close via IK grasp + pull/push (no policy, no joint-target cheating)
+            if self.backend.drawer_env is None or self.backend.adapter is None:
+                raise RuntimeError("drawer_backend='ik_pull' requires drawer_env and adapter")
+            if is_open:
+                return OpenDrawerIKSkill(request, self.backend.drawer_env, self.backend.adapter)
+            return CloseDrawerIKSkill(request, self.backend.drawer_env, self.backend.adapter)
         if backend == "custom_selected_policy" and is_open:
             if self.backend.drawer_policy is None or self.backend.drawer_env is None:
                 raise RuntimeError(

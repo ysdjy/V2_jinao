@@ -43,8 +43,8 @@ parser.add_argument(
     "--drawer_backend",
     type=str,
     default="scripted_joint",
-    choices=["none", "scripted_joint", "official_joint_policy", "custom_selected_policy"],
-    help="Drawer backend.",
+    choices=["none", "scripted_joint", "official_joint_policy", "custom_selected_policy", "ik_pull"],
+    help="Drawer backend. ik_pull = physical open/close via IK grasp+pull (no policy).",
 )
 parser.add_argument("--drawer_policy_path", type=str, default=None, help="TorchScript policy.pt for the learned drawer backend.")
 parser.add_argument("--drawer_joint_name", type=str, default="joint_0", help="Cabinet drawer joint to read for success.")
@@ -93,6 +93,7 @@ DEFAULT_PLACE_POINTS = {
     "point_a": [0.42, 0.10, 0.00],
     "point_b": [0.55, 0.10, 0.00],
     "point_c": [0.68, 0.10, 0.00],
+    "point_d": [0.55, 0.20, 0.00],
 }
 
 
@@ -170,8 +171,14 @@ def main():
         env_cfg.events.randomize_cube_positions = None
     if hasattr(env_cfg.scene, "cabinet") and hasattr(env_cfg.scene.cabinet, "actuators"):
         if "drawers" in env_cfg.scene.cabinet.actuators:
-            env_cfg.scene.cabinet.actuators["drawers"].stiffness = 10.0
-            env_cfg.scene.cabinet.actuators["drawers"].damping = 1.0
+            # ik_pull physically pulls the drawer, so make it free-sliding (no spring fighting the
+            # gripper); other backends keep a light spring.
+            if args_cli.drawer_backend == "ik_pull":
+                env_cfg.scene.cabinet.actuators["drawers"].stiffness = 0.0
+                env_cfg.scene.cabinet.actuators["drawers"].damping = 2.0
+            else:
+                env_cfg.scene.cabinet.actuators["drawers"].stiffness = 10.0
+                env_cfg.scene.cabinet.actuators["drawers"].damping = 1.0
     if hasattr(env_cfg.scene, "knife") and hasattr(env_cfg.scene.knife, "actuators"):
         if "blade_lock" in env_cfg.scene.knife.actuators:
             env_cfg.scene.knife.actuators["blade_lock"].stiffness = 100.0
