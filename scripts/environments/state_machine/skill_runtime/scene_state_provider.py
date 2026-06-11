@@ -66,6 +66,9 @@ class SceneStateProvider:
         self.device = self.scene.device
         self._finger_joint_ids = self._find_joints("panda_finger_.*")
         self._sim_time = 0.0
+        self._cabinet_joint_id_cache: dict[str, int] = {}
+        self._cabinet_control_method: dict[str, str] = {}
+        self._logged_cabinet_joints: set[str] = set()
 
     def set_sim_time(self, sim_time: float):
         self._sim_time = sim_time
@@ -127,6 +130,43 @@ class SceneStateProvider:
             raise ValueError("gripper_command must be -1.0 or 1.0")
         return self.make_action(state.robot.tcp_pose, gripper_command)
 
+    def get_cabinet_joint_pos(self, joint_name: str) -> float:
+        cabinet = self.scene["cabinet"]
+        joint_id = self._cabinet_joint_id(joint_name)
+        return float(cabinet.data.joint_pos[self.env_id, joint_id].detach().cpu())
+
+    def set_cabinet_joint_target(self, joint_name: str, target: float):
+        cabinet = self.scene["cabinet"]
+        joint_id = self._cabinet_joint_id(joint_name)
+        env_ids = torch.tensor([self.env_id], dtype=torch.long, device=self.device)
+        joint_ids = torch.tensor([joint_id], dtype=torch.long, device=self.device)
+        target_tensor = torch.tensor([[float(target)]], dtype=cabinet.data.joint_pos.dtype, device=self.device)
+        method = self._cabinet_control_method.get(joint_name)
+        if method != "write_joint_state_to_sim fallback":
+            try:
+                cabinet.set_joint_position_target(target_tensor, joint_ids=joint_ids, env_ids=env_ids)
+                self._cabinet_control_method[joint_name] = "set_joint_position_target"
+                self._log_cabinet_joint_control(joint_name, joint_id)
+                return
+            except Exception as exc:
+                self._cabinet_control_method[joint_name] = "write_joint_state_to_sim fallback"
+                print(
+                    "[SceneStateProvider] set_joint_position_target failed; "
+                    f"using write_joint_state_to_sim fallback for {joint_name}: {exc}",
+                    flush=True,
+                )
+        self._write_single_cabinet_joint(joint_name, joint_id, target_tensor, env_ids, joint_ids)
+        self._log_cabinet_joint_control(joint_name, joint_id)
+
+    def reset_cabinet_joint(self, joint_name: str, target: float = 0.0):
+        self.set_cabinet_joint_target(joint_name, target)
+        cabinet = self.scene["cabinet"]
+        joint_id = self._cabinet_joint_id(joint_name)
+        env_ids = torch.tensor([self.env_id], dtype=torch.long, device=self.device)
+        joint_ids = torch.tensor([joint_id], dtype=torch.long, device=self.device)
+        target_tensor = torch.tensor([[float(target)]], dtype=cabinet.data.joint_pos.dtype, device=self.device)
+        self._write_single_cabinet_joint(joint_name, joint_id, target_tensor, env_ids, joint_ids)
+
     def reset_scene_deterministic(self):
         raise RuntimeError("Scene reset moved to SceneLayoutManager.reset_layout()")
 
@@ -145,6 +185,57 @@ class SceneStateProvider:
             return 0.0
         values = robot.data.joint_pos[self.env_id, self._finger_joint_ids]
         return float(values.sum().detach().cpu())
+
+    def _cabinet_joint_id(self, joint_name: str) -> int:
+        if joint_name in self._cabinet_joint_id_cache:
+            return self._cabinet_joint_id_cache[joint_name]
+        cabinet = self.scene["cabinet"]
+        names = list(getattr(cabinet.data, "joint_names", []))
+        if joint_name in names:
+            joint_id = names.index(joint_name)
+        else:
+            joint_ids, _ = cabinet.find_joints(joint_name)
+            if not joint_ids:
+                raise RuntimeError(f"Cabinet joint not found: {joint_name}; available={names}")
+            joint_id = int(joint_ids[0])
+        self._cabinet_joint_id_cache[joint_name] = joint_id
+        return joint_id
+
+    def _write_single_cabinet_joint(
+        self,
+        joint_name: str,
+        joint_id: int,
+        target_tensor: torch.Tensor,
+        env_ids: torch.Tensor,
+        joint_ids: torch.Tensor,
+    ):
+        cabinet = self.scene["cabinet"]
+        if not hasattr(cabinet, "write_joint_state_to_sim"):
+            raise RuntimeError("cabinet.write_joint_state_to_sim is unavailable")
+        joint_vel = torch.zeros_like(target_tensor)
+        try:
+            cabinet.write_joint_state_to_sim(target_tensor, joint_vel, joint_ids=joint_ids, env_ids=env_ids)
+        except TypeError:
+            full_pos = cabinet.data.joint_pos[self.env_id : self.env_id + 1].clone()
+            full_vel = cabinet.data.joint_vel[self.env_id : self.env_id + 1].clone()
+            full_pos[0, joint_id] = target_tensor[0, 0]
+            full_vel[0, joint_id] = 0.0
+            cabinet.write_joint_state_to_sim(full_pos, full_vel, env_ids=env_ids)
+        self._cabinet_control_method[joint_name] = "write_joint_state_to_sim fallback"
+
+    def _log_cabinet_joint_control(self, joint_name: str, joint_id: int):
+        if joint_name in self._logged_cabinet_joints:
+            return
+        cabinet = self.scene["cabinet"]
+        print(
+            "[SceneStateProvider] cabinet_joint_control "
+            f"cabinet_joint_names={list(getattr(cabinet.data, 'joint_names', []))} "
+            f"selected_drawer_joint_name={joint_name} "
+            f"selected_drawer_joint_id={joint_id} "
+            f"control_method={self._cabinet_control_method.get(joint_name)}",
+            flush=True,
+        )
+        self._logged_cabinet_joints.add(joint_name)
 
     def _rigid_object_state(self, name: str) -> ObjectState:
         asset = self.scene[name]

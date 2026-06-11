@@ -204,7 +204,7 @@ class FrankaCubeStackEnvCfg(StackEnvCfg):
                     joint_names_expr=["joint_0", "joint_1", "joint_2"],
                     effort_limit_sim=87.0,
                     velocity_limit_sim=100.0,
-                    stiffness=0.0,
+                    stiffness=10.0,
                     damping=1.0,
                 ),
             },

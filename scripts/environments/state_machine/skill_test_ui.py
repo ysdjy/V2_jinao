@@ -195,7 +195,11 @@ class SkillTestWindow:
                     "knife_pose",
                     "minimum_pair_clearance",
                     "target_pose",
+                    "drawer_control_mode",
+                    "drawer_joint_name",
                     "drawer_joint_position",
+                    "drawer_joint_target",
+                    "drawer_runtime_status",
                     "handle_pose",
                     "last_failure",
                     "last_result",
@@ -271,6 +275,9 @@ class SkillTestWindow:
         if active is not None:
             elapsed = max(0.0, state.sim_time - getattr(active.runtime, "start_time", state.sim_time))
         orientation_error = getattr(getattr(active, "runtime", None), "final_error_ori", None)
+        drawer_runtime = getattr(active, "runtime", None)
+        drawer_joint_name = getattr(drawer_runtime, "drawer_joint_name", "joint_0")
+        drawer_joint_target = getattr(drawer_runtime, "drawer_joint_target", None)
         point = self.place_points[self.selected_place_point]
         latched = executor.latched_command
         values = {
@@ -303,7 +310,11 @@ class SkillTestWindow:
             "knife_pose": None if layout_result is None else layout_result.object_poses.get("knife"),
             "minimum_pair_clearance": None,
             "target_pose": _short_pose(target_pose),
+            "drawer_control_mode": getattr(drawer_runtime, "drawer_control_mode", None),
+            "drawer_joint_name": drawer_joint_name,
             "drawer_joint_position": None if drawer_joint_position is None else f"{drawer_joint_position:.5f}",
+            "drawer_joint_target": None if drawer_joint_target is None else f"{drawer_joint_target:.5f}",
+            "drawer_runtime_status": getattr(drawer_runtime, "state", None),
             "handle_pose": _short_pose(handle_pose_state.as_pose_tensor() if handle_pose_state is not None else None),
             "last_failure": None if result is None else result.failure_reason,
             "last_result": None if result is None else result.final_status.value,
@@ -381,10 +392,27 @@ def _print_layout_summary(layout_result: SimpleLayoutResult) -> None:
 
 
 def _settle_layout(env, provider: SceneStateProvider) -> None:
+    provider.reset_cabinet_joint("joint_0", 0.0)
     state = provider.get_state()
     hold_action = provider.make_action(state.robot.tcp_pose, 1.0)
     for _ in range(5):
         env.step(hold_action)
+
+
+def _apply_drawer_joint_command(provider: SceneStateProvider, command) -> None:
+    if command.drawer_joint_target is None:
+        return
+    provider.set_cabinet_joint_target(command.drawer_joint_name or "joint_0", command.drawer_joint_target)
+
+
+def _hold_drawer_joint(provider: SceneStateProvider, state) -> None:
+    cabinet = state.objects.get("cabinet")
+    if cabinet is None:
+        return
+    joint_pos = cabinet.joint_pos.get("joint_0")
+    if joint_pos is None:
+        return
+    provider.set_cabinet_joint_target("joint_0", joint_pos)
 
 
 def main():
@@ -403,8 +431,8 @@ def main():
         env_cfg.events.randomize_cube_positions = None
     if hasattr(env_cfg.scene, "cabinet") and hasattr(env_cfg.scene.cabinet, "actuators"):
         if "drawers" in env_cfg.scene.cabinet.actuators:
-            env_cfg.scene.cabinet.actuators["drawers"].stiffness = 0.0
-            env_cfg.scene.cabinet.actuators["drawers"].damping = 2.0
+            env_cfg.scene.cabinet.actuators["drawers"].stiffness = 10.0
+            env_cfg.scene.cabinet.actuators["drawers"].damping = 1.0
     if hasattr(env_cfg.scene, "knife") and hasattr(env_cfg.scene.knife, "actuators"):
         if "blade_lock" in env_cfg.scene.knife.actuators:
             env_cfg.scene.knife.actuators["blade_lock"].stiffness = 100.0
@@ -463,6 +491,7 @@ def main():
                     executor.start(pending.request, state)
                 elif pending.command == "stop":
                     command = executor.pause(state)
+                    _hold_drawer_joint(provider, state)
                     actions = provider.make_action(command.tcp_pose_w, command.gripper_command)
                     handled_control_command = True
                 elif pending.command == "resume":
@@ -470,6 +499,7 @@ def main():
                 elif pending.command == "reset":
                     executor.reset()
                     env.reset(seed=args_cli.seed)
+                    provider.reset_cabinet_joint("joint_0", 0.0)
                     layout_reset_index += 1
                     layout_result = layout_manager.reset_layout(reset_index=layout_reset_index)
                     _settle_layout(env, provider)
@@ -479,6 +509,7 @@ def main():
 
             if not handled_control_command:
                 command = executor.step(state, sim_dt)
+                _apply_drawer_joint_command(provider, command)
                 actions = provider.make_action(command.tcp_pose_w, command.gripper_command)
             env.step(actions)
 

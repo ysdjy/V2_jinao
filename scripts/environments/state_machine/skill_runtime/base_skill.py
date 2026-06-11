@@ -19,6 +19,8 @@ class SkillCommand:
     tcp_pose_w: PoseState
     gripper_command: float
     status: ExecutionStatus
+    drawer_joint_name: str | None = None
+    drawer_joint_target: float | None = None
 
 
 @dataclass

@@ -1,84 +1,30 @@
-"""Bottom-drawer open/close skill using physical handle contact."""
+"""Bottom-drawer open/close scripted joint baseline."""
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 
-import torch
-
-from isaaclab.utils import math as math_utils
-
-from .base_skill import SkillCommand, finite_pose, format_pose, pose_error, pose_tensor, step_pose
+from .base_skill import SkillCommand, pose_tensor
 from .scene_state_provider import PoseState, SceneState
 from .skill_request import SkillRequest
 from .skill_result import SkillResult
 from .skill_types import ExecutionStatus, FailureReason, SkillType
 
 
-CABINET_SCALE = 0.62
-
+DRAWER_CONTROL_MODE = "scripted_joint"
 BOTTOM_DRAWER_LINK = "link_1"
 BOTTOM_DRAWER_JOINT = "joint_0"
-
-BOTTOM_HANDLE_LOCAL_POS_UNSCALED = (
-    0.11946,
-    0.01491,
-    1.06183,
-)
-BOTTOM_HANDLE_LOCAL_POS = tuple(value * CABINET_SCALE for value in BOTTOM_HANDLE_LOCAL_POS_UNSCALED)
-BOTTOM_HANDLE_LOCAL_QUAT = (
-    1.0,
-    0.0,
-    0.0,
-    0.0,
-)
-
-
-@dataclass
-class DrawerPlan:
-    handle_pose: PoseState
-    pre_handle_pose: PoseState
-    grasp_pose: PoseState
-    pull_pose: PoseState
-    push_contact_pose: PoseState
-    push_target_pose: PoseState
-    retreat_pose: PoseState
-    outward: torch.Tensor
-    initial_joint_pos: float
 
 
 @dataclass
 class DrawerSkillConfig:
-    pre_distance: float = 0.10
-    grasp_standoff: float = 0.012
-    pull_distance: float = 0.22
-    retreat_distance: float = 0.08
-    push_margin: float = 0.04
-    push_contact_offset: float = 0.005
-
-    move_position_step: float = 0.010
-    move_orientation_step: float = math.radians(4.0)
-    contact_position_step: float = 0.004
-    pull_position_step: float = 0.005
-    push_position_step: float = 0.005
-
-    position_threshold: float = 0.010
-    orientation_threshold: float = math.radians(7.0)
-    stable_cycles: int = 5
-
-    settle_duration: float = 0.20
-    close_gripper_duration: float = 0.50
-    close_stability_duration: float = 0.60
-    max_close_tcp_displacement: float = 0.020
-    max_close_tcp_rotation: float = math.radians(12.0)
-    max_close_joint_jump: float = math.radians(20.0)
-    release_duration: float = 0.40
-    state_timeout: float = 12.0
-
-    open_joint_threshold: float = 0.15
-    closed_joint_threshold: float = 0.03
-    min_handle_grasp_width: float = 0.008
+    use_scripted_joint_control: bool = True
+    open_target_joint_pos: float = 0.25
+    open_success_threshold: float = 0.20
+    close_target_joint_pos: float = 0.0
+    close_success_threshold: float = 0.02
+    stable_cycles: int = 3
+    state_timeout: float = 8.0
 
 
 @dataclass
@@ -87,20 +33,15 @@ class DrawerRuntime:
     start_time: float = 0.0
     state_start_time: float = 0.0
     stable_count: int = 0
-    plan: DrawerPlan | None = None
-    filtered_plan: DrawerPlan | None = None
+    drawer_control_mode: str = DRAWER_CONTROL_MODE
+    drawer_joint_name: str = BOTTOM_DRAWER_JOINT
+    drawer_joint_target: float | None = None
+    initial_joint_pos: float = 0.0
+    current_joint_pos: float = 0.0
+    max_joint_displacement: float = 0.0
     last_command_pose: PoseState | None = None
     final_error_pos: float | None = None
     final_error_ori: float | None = None
-    initial_joint_pos: float = 0.0
-    max_joint_displacement: float = 0.0
-    close_hold_pose: PoseState | None = None
-    close_start_tcp_pose: PoseState | None = None
-    close_start_joint_pos: torch.Tensor | None = None
-    max_close_tcp_displacement: float = 0.0
-    max_close_tcp_rotation: float = 0.0
-    max_close_joint_jump: float = 0.0
-    last_close_stability_log_time: float = -1.0e9
     last_failure_message: str | None = None
     history: list[dict] = field(default_factory=list)
 
@@ -120,34 +61,58 @@ class DrawerSkill:
     def start(self, state: SceneState):
         self.status = ExecutionStatus.RUNNING
         self.failure_reason = FailureReason.NONE
-        initial_state = "ACQUIRE_HANDLE" if self.request.skill_type == SkillType.OPEN_DRAWER else "ACQUIRE_PUSH_TARGET"
         self.runtime = DrawerRuntime(
-            state=initial_state,
+            state="ACQUIRE_DRAWER",
             start_time=state.sim_time,
             state_start_time=state.sim_time,
             last_command_pose=state.robot.tcp_pose,
         )
-        self._record_transition(state, "IDLE", initial_state)
+        self._record_transition(state, "IDLE", "ACQUIRE_DRAWER")
 
     def step(self, state: SceneState, dt: float) -> SkillCommand:
         if self.status == ExecutionStatus.IDLE:
             self.start(state)
         if self.status in (ExecutionStatus.SUCCEEDED, ExecutionStatus.FAILED, ExecutionStatus.STOPPED):
-            return SkillCommand(self.runtime.last_command_pose or state.robot.tcp_pose, 1.0, self.status)
+            return self._command(state, None)
 
-        if self.request.skill_type == SkillType.OPEN_DRAWER:
-            return self._step_open(state)
-        if self.request.skill_type == SkillType.CLOSE_DRAWER:
-            return self._step_close(state)
+        if self.runtime.state == "ACQUIRE_DRAWER":
+            if not self._acquire_drawer(state):
+                return self._command(state, None)
+            self._transition(state, "COMMAND_JOINT_TARGET")
 
-        self._fail(state, FailureReason.REQUEST_INVALID, f"unsupported drawer skill: {self.request.skill_type}")
-        return SkillCommand(state.robot.tcp_pose, 1.0, self.status)
+        if self.runtime.state == "COMMAND_JOINT_TARGET":
+            self.runtime.drawer_joint_target = self._target_joint_pos()
+            self._transition(state, "WAIT_JOINT_REACHED")
+
+        if self.runtime.state == "WAIT_JOINT_REACHED":
+            self._update_joint_progress(state)
+            if self._success_reached():
+                self.runtime.stable_count += 1
+                if self.runtime.stable_count >= self.cfg.stable_cycles:
+                    self._succeed(state)
+                    return self._command(state, self.runtime.drawer_joint_target)
+            else:
+                self.runtime.stable_count = 0
+            if self._state_elapsed(state) > self.cfg.state_timeout:
+                self._fail(
+                    state,
+                    FailureReason.DRAWER_OPEN_TIMEOUT
+                    if self.request.skill_type == SkillType.OPEN_DRAWER
+                    else FailureReason.DRAWER_CLOSE_TIMEOUT,
+                    (
+                        f"drawer joint did not reach target: pos={self.runtime.current_joint_pos:.5f}, "
+                        f"target={self.runtime.drawer_joint_target:.5f}"
+                    ),
+                )
+
+        return self._command(state, self.runtime.drawer_joint_target)
 
     def cancel(self, state: SceneState) -> SkillCommand:
         self.status = ExecutionStatus.STOPPED
         self.failure_reason = FailureReason.CANCELLED_BY_USER
+        self.runtime.drawer_joint_target = None
         self._transition(state, "CANCELLED")
-        return SkillCommand(state.robot.tcp_pose, 1.0, self.status)
+        return self._command(state, None)
 
     def result(self, state: SceneState) -> SkillResult:
         return SkillResult(
@@ -165,374 +130,77 @@ class DrawerSkill:
             state_history=self.runtime.history,
         )
 
-    def _step_open(self, state: SceneState) -> SkillCommand:
-        gripper = 1.0
-        desired = state.robot.tcp_pose
-        command_pose = state.robot.tcp_pose
-
-        if self.runtime.state == "ACQUIRE_HANDLE":
-            plan = self._make_plan(state)
-            if plan is None:
-                return SkillCommand(state.robot.tcp_pose, 1.0, self.status)
-            self.runtime.plan = plan
-            self.runtime.filtered_plan = plan
-            self.runtime.initial_joint_pos = plan.initial_joint_pos
-            self._log_plan(state, plan)
-            if abs(plan.initial_joint_pos) >= self.cfg.open_joint_threshold:
-                self._succeed(state)
-                return SkillCommand(state.robot.tcp_pose, 1.0, self.status)
-            self._transition(state, "MOVE_TO_PRE_GRASP")
-
-        plan = self.runtime.plan
-        if plan is None:
-            self._fail(state, FailureReason.TARGET_LOST, "drawer plan missing")
-            return SkillCommand(state.robot.tcp_pose, 1.0, self.status)
-
-        if self.runtime.state == "MOVE_TO_PRE_GRASP":
-            desired = plan.pre_handle_pose
-            command_pose = self._bounded_command(state, desired, self.cfg.move_position_step, self.cfg.move_orientation_step)
-            self._advance_when_reached(state, desired, "MOVE_TO_HANDLE", FailureReason.POSITION_TIMEOUT)
-        elif self.runtime.state == "MOVE_TO_HANDLE":
-            desired = plan.grasp_pose
-            command_pose = self._bounded_command(state, desired, self.cfg.contact_position_step, self.cfg.move_orientation_step)
-            self._advance_when_reached(state, desired, "SETTLE_AT_HANDLE", FailureReason.POSITION_TIMEOUT)
-        elif self.runtime.state == "SETTLE_AT_HANDLE":
-            desired = plan.grasp_pose
-            command_pose = self._bounded_command(state, desired, self.cfg.contact_position_step, self.cfg.move_orientation_step)
-            if self._state_elapsed(state) >= self.cfg.settle_duration:
-                self.runtime.close_hold_pose = PoseState(
-                    state.robot.tcp_pose.pos_w.clone(),
-                    state.robot.tcp_pose.quat_w.clone(),
-                )
-                self.runtime.close_start_tcp_pose = PoseState(
-                    state.robot.tcp_pose.pos_w.clone(),
-                    state.robot.tcp_pose.quat_w.clone(),
-                )
-                self.runtime.close_start_joint_pos = state.robot.joint_pos.clone()
-                self._log_close_hold(plan)
-                self._transition(state, "CLOSE_GRIPPER")
-        elif self.runtime.state == "CLOSE_GRIPPER":
-            hold_pose = self.runtime.close_hold_pose
-            if hold_pose is None:
-                self.runtime.last_command_pose = PoseState(
-                    state.robot.tcp_pose.pos_w.clone(),
-                    state.robot.tcp_pose.quat_w.clone(),
-                )
-                self._fail(state, FailureReason.HANDLE_GRASP_FAILED, "close hold pose is missing")
-                return SkillCommand(self.runtime.last_command_pose, 1.0, self.status)
-            desired = hold_pose
-            command_pose = hold_pose
-            gripper = -1.0
-            if self._state_elapsed(state) >= self.cfg.close_gripper_duration:
-                self._transition(state, "VERIFY_CLOSE_STABILITY")
-        elif self.runtime.state == "VERIFY_CLOSE_STABILITY":
-            hold_pose = self.runtime.close_hold_pose
-            start_pose = self.runtime.close_start_tcp_pose
-            start_joints = self.runtime.close_start_joint_pos
-            if hold_pose is None or start_pose is None or start_joints is None:
-                self.runtime.last_command_pose = PoseState(
-                    state.robot.tcp_pose.pos_w.clone(),
-                    state.robot.tcp_pose.quat_w.clone(),
-                )
-                self._fail(state, FailureReason.HANDLE_GRASP_FAILED, "close stability reference is missing")
-                return SkillCommand(self.runtime.last_command_pose, 1.0, self.status)
-            desired = hold_pose
-            command_pose = hold_pose
-            gripper = -1.0
-            tcp_error = pose_error(state.robot.tcp_pose, start_pose)
-            joint_jump = float(torch.max(torch.abs(state.robot.joint_pos - start_joints)).detach().cpu())
-            self.runtime.max_close_tcp_displacement = max(self.runtime.max_close_tcp_displacement, tcp_error.position)
-            self.runtime.max_close_tcp_rotation = max(self.runtime.max_close_tcp_rotation, tcp_error.orientation)
-            self.runtime.max_close_joint_jump = max(self.runtime.max_close_joint_jump, joint_jump)
-            self._log_close_stability(state, tcp_error, joint_jump)
-            unstable = (
-                tcp_error.position > self.cfg.max_close_tcp_displacement
-                or tcp_error.orientation > self.cfg.max_close_tcp_rotation
-                or joint_jump > self.cfg.max_close_joint_jump
-            )
-            if unstable:
-                self.runtime.last_command_pose = PoseState(
-                    state.robot.tcp_pose.pos_w.clone(),
-                    state.robot.tcp_pose.quat_w.clone(),
-                )
-                self._fail(
-                    state,
-                    FailureReason.HANDLE_GRASP_FAILED,
-                    "unstable handle contact: "
-                    f"tcp_shift={tcp_error.position:.5f}, "
-                    f"tcp_rotation_deg={math.degrees(tcp_error.orientation):.2f}, "
-                    f"max_joint_jump_deg={math.degrees(joint_jump):.2f}",
-                )
-                return SkillCommand(self.runtime.last_command_pose, 1.0, self.status)
-            if self._state_elapsed(state) >= self.cfg.close_stability_duration:
-                self._transition(state, "DEBUG_HOLD")
-        elif self.runtime.state == "DEBUG_HOLD":
-            desired = self.runtime.close_hold_pose or plan.grasp_pose
-            command_pose = desired
-            gripper = -1.0
-        elif self.runtime.state == "PULL_OPEN":
-            desired = plan.pull_pose
-            command_pose = self._bounded_command(state, desired, self.cfg.pull_position_step, self.cfg.move_orientation_step)
-            gripper = -1.0
-            self._advance_when_reached(state, desired, "VERIFY_OPEN", FailureReason.DRAWER_OPEN_TIMEOUT)
-        elif self.runtime.state == "VERIFY_OPEN":
-            desired = plan.pull_pose
-            command_pose = desired
-            gripper = -1.0
-            if self._joint_displacement(state) >= self.cfg.open_joint_threshold:
-                self._transition(state, "OPEN_GRIPPER")
-            elif self._state_elapsed(state) > self.cfg.state_timeout:
-                self._fail(state, FailureReason.DRAWER_OPEN_TIMEOUT, "drawer joint did not move enough")
-        elif self.runtime.state == "OPEN_GRIPPER":
-            desired = plan.pull_pose
-            command_pose = desired
-            if self._state_elapsed(state) >= self.cfg.release_duration:
-                self._lock_retreat_pose(state, plan)
-                self._transition(state, "RETREAT")
-        elif self.runtime.state == "RETREAT":
-            desired = plan.retreat_pose
-            command_pose = self._bounded_command(state, desired, self.cfg.move_position_step, self.cfg.move_orientation_step)
-            if self._advance_when_reached(state, desired, "SUCCEEDED", FailureReason.POSITION_TIMEOUT):
-                self._succeed(state)
-
-        return self._finish_step(state, desired, command_pose, gripper)
-
-    def _step_close(self, state: SceneState) -> SkillCommand:
-        gripper = 1.0
-        desired = state.robot.tcp_pose
-        command_pose = state.robot.tcp_pose
-
-        if self.runtime.state == "ACQUIRE_PUSH_TARGET":
-            plan = self._make_plan(state)
-            if plan is None:
-                return SkillCommand(state.robot.tcp_pose, 1.0, self.status)
-            self.runtime.plan = plan
-            self.runtime.filtered_plan = plan
-            self.runtime.initial_joint_pos = plan.initial_joint_pos
-            self._log_plan(state, plan)
-            if abs(plan.initial_joint_pos) <= self.cfg.closed_joint_threshold:
-                self._succeed(state)
-                return SkillCommand(state.robot.tcp_pose, 1.0, self.status)
-            self._transition(state, "MOVE_TO_PRE_PUSH")
-
-        plan = self.runtime.plan
-        if plan is None:
-            self._fail(state, FailureReason.TARGET_LOST, "drawer plan missing")
-            return SkillCommand(state.robot.tcp_pose, 1.0, self.status)
-
-        if self.runtime.state == "MOVE_TO_PRE_PUSH":
-            desired = plan.pre_handle_pose
-            command_pose = self._bounded_command(state, desired, self.cfg.move_position_step, self.cfg.move_orientation_step)
-            self._advance_when_reached(state, desired, "MOVE_TO_PUSH_CONTACT", FailureReason.POSITION_TIMEOUT)
-        elif self.runtime.state == "MOVE_TO_PUSH_CONTACT":
-            desired = plan.push_contact_pose
-            command_pose = self._bounded_command(state, desired, self.cfg.contact_position_step, self.cfg.move_orientation_step)
-            if self._advance_when_reached(state, desired, "PUSH_CLOSED", FailureReason.POSITION_TIMEOUT):
-                self._lock_push_target(state, plan)
-        elif self.runtime.state == "PUSH_CLOSED":
-            desired = plan.push_target_pose
-            command_pose = self._bounded_command(state, desired, self.cfg.push_position_step, self.cfg.move_orientation_step)
-            self._advance_when_reached(state, desired, "VERIFY_CLOSED", FailureReason.DRAWER_CLOSE_TIMEOUT)
-        elif self.runtime.state == "VERIFY_CLOSED":
-            desired = plan.push_target_pose
-            command_pose = desired
-            joint_pos = self._drawer_joint_pos(state)
-            if joint_pos is not None and abs(joint_pos) <= self.cfg.closed_joint_threshold:
-                self.runtime.stable_count += 1
-                if self.runtime.stable_count >= self.cfg.stable_cycles:
-                    self._lock_retreat_pose(state, plan)
-                    self._transition(state, "RETREAT")
-            else:
-                self.runtime.stable_count = 0
-            if self._state_elapsed(state) > self.cfg.state_timeout:
-                self._fail(state, FailureReason.DRAWER_CLOSE_TIMEOUT, "drawer joint did not close")
-        elif self.runtime.state == "RETREAT":
-            desired = plan.retreat_pose
-            command_pose = self._bounded_command(state, desired, self.cfg.move_position_step, self.cfg.move_orientation_step)
-            if self._advance_when_reached(state, desired, "SUCCEEDED", FailureReason.POSITION_TIMEOUT):
-                self._succeed(state)
-
-        return self._finish_step(state, desired, command_pose, gripper)
-
-    def _make_plan(self, state: SceneState) -> DrawerPlan | None:
+    def _acquire_drawer(self, state: SceneState) -> bool:
+        if not self.cfg.use_scripted_joint_control:
+            self._fail(state, FailureReason.REQUEST_INVALID, "scripted joint control is disabled")
+            return False
         if self.request.destination_object not in (None, "bottom_drawer"):
             self._fail(state, FailureReason.REQUEST_INVALID, "only bottom_drawer is supported")
-            return None
+            return False
         if self.request.parameters.get("drawer_link", BOTTOM_DRAWER_LINK) != BOTTOM_DRAWER_LINK:
             self._fail(state, FailureReason.REQUEST_INVALID, "only link_1 is supported")
-            return None
-        if self.request.parameters.get("drawer_joint", BOTTOM_DRAWER_JOINT) != BOTTOM_DRAWER_JOINT:
+            return False
+        joint_name = self.request.parameters.get("drawer_joint", BOTTOM_DRAWER_JOINT)
+        if joint_name != BOTTOM_DRAWER_JOINT:
             self._fail(state, FailureReason.REQUEST_INVALID, "only joint_0 is supported")
-            return None
-        cabinet = state.objects.get("cabinet")
-        if cabinet is None or BOTTOM_DRAWER_LINK not in cabinet.links:
-            self._fail(state, FailureReason.TARGET_LOST, "cabinet link_1 pose missing")
-            return None
-        if BOTTOM_DRAWER_JOINT not in cabinet.joint_pos:
-            self._fail(state, FailureReason.DRAWER_JOINT_MISSING, "joint_0 missing")
-            return None
-
-        drawer_link_pose = cabinet.links[BOTTOM_DRAWER_LINK]
-        handle_pose = self._handle_pose(drawer_link_pose)
-        if handle_pose is None:
-            return None
-        outward = handle_pose.pos_w - cabinet.pose.pos_w
-        outward = outward.clone()
-        outward[2] = 0.0
-        outward_norm = torch.linalg.norm(outward)
-        if float(outward_norm.detach().cpu()) < 0.05:
-            self._fail(state, FailureReason.DRAWER_GEOMETRY_INVALID, "handle outward direction too small")
-            return None
-        outward = outward / outward_norm
-        drawer_quat = self._drawer_grasp_quat(outward)
-        initial_joint_pos = float(cabinet.joint_pos[BOTTOM_DRAWER_JOINT])
-
-        grasp_pos = handle_pose.pos_w + outward * self.cfg.grasp_standoff
-        pre_pos = grasp_pos + outward * self.cfg.pre_distance
-        grasp_pose = PoseState(grasp_pos, drawer_quat)
-        pre_handle_pose = PoseState(pre_pos, drawer_quat)
-        pull_pose = PoseState(handle_pose.pos_w + outward * self.cfg.pull_distance, drawer_quat)
-        push_contact_pose = PoseState(handle_pose.pos_w + outward * self.cfg.push_contact_offset, drawer_quat)
-        push_target_pose = PoseState(
-            handle_pose.pos_w - outward * (abs(initial_joint_pos) + self.cfg.push_margin),
-            drawer_quat,
-        )
-        retreat_pose = PoseState(handle_pose.pos_w + outward * self.cfg.retreat_distance, drawer_quat)
-        plan = DrawerPlan(
-            handle_pose=PoseState(handle_pose.pos_w, handle_pose.quat_w),
-            pre_handle_pose=pre_handle_pose,
-            grasp_pose=grasp_pose,
-            pull_pose=pull_pose,
-            push_contact_pose=push_contact_pose,
-            push_target_pose=push_target_pose,
-            retreat_pose=retreat_pose,
-            outward=outward,
-            initial_joint_pos=initial_joint_pos,
-        )
-        if not all(
-            finite_pose(pose)
-            for pose in (
-                plan.handle_pose,
-                plan.pre_handle_pose,
-                plan.grasp_pose,
-                plan.pull_pose,
-                plan.push_contact_pose,
-                plan.push_target_pose,
-                plan.retreat_pose,
-            )
-        ):
-            self._fail(state, FailureReason.DRAWER_GEOMETRY_INVALID, "computed drawer pose is non-finite")
-            return None
-        return plan
-
-    def _handle_pose(self, drawer_link_pose: PoseState) -> PoseState | None:
-        device = drawer_link_pose.pos_w.device
-        handle_local_pos = torch.tensor(BOTTOM_HANDLE_LOCAL_POS, dtype=torch.float32, device=device).unsqueeze(0)
-        handle_local_quat = torch.tensor(BOTTOM_HANDLE_LOCAL_QUAT, dtype=torch.float32, device=device).unsqueeze(0)
-        handle_pos_w, handle_quat_w = math_utils.combine_frame_transforms(
-            drawer_link_pose.pos_w.unsqueeze(0),
-            drawer_link_pose.quat_w.unsqueeze(0),
-            handle_local_pos,
-            handle_local_quat,
-        )
-        return PoseState(handle_pos_w[0], math_utils.normalize(handle_quat_w)[0])
-
-    def _drawer_grasp_quat(self, outward: torch.Tensor) -> torch.Tensor:
-        device = outward.device
-        tool_z_w = -outward
-        tool_y_w = torch.tensor([0.0, 0.0, 1.0], dtype=torch.float32, device=device)
-        tool_x_w = torch.linalg.cross(tool_y_w, tool_z_w, dim=0)
-        tool_x_w = tool_x_w / torch.linalg.norm(tool_x_w).clamp_min(1.0e-6)
-        tool_y_w = torch.linalg.cross(tool_z_w, tool_x_w, dim=0)
-        tool_y_w = tool_y_w / torch.linalg.norm(tool_y_w).clamp_min(1.0e-6)
-        rotation_matrix = torch.stack([tool_x_w, tool_y_w, tool_z_w], dim=-1)
-        return math_utils.quat_from_matrix(rotation_matrix.unsqueeze(0))[0]
-
-    def _bounded_command(
-        self,
-        state: SceneState,
-        desired: PoseState,
-        max_position_step: float,
-        max_rotation_step: float,
-    ) -> PoseState:
-        command_from = self.runtime.last_command_pose or state.robot.tcp_pose
-        return step_pose(command_from, desired, max_position_step, max_rotation_step)
-
-    def _advance_when_reached(
-        self,
-        state: SceneState,
-        desired: PoseState,
-        next_state: str,
-        timeout_reason: FailureReason,
-    ) -> bool:
-        error = pose_error(state.robot.tcp_pose, desired)
-        if error.position <= self.cfg.position_threshold and error.orientation <= self.cfg.orientation_threshold:
-            self.runtime.stable_count += 1
-            if self.runtime.stable_count >= self.cfg.stable_cycles:
-                self._transition(state, next_state)
-                return True
-        else:
-            self.runtime.stable_count = 0
-        if self._state_elapsed(state) > self.cfg.state_timeout:
-            self._fail(
-                state,
-                timeout_reason,
-                f"drawer pose error p={error.position:.4f}, orientation_error_deg={math.degrees(error.orientation):.2f}",
-            )
-        return False
-
-    def _lock_pull_pose(self, state: SceneState, plan: DrawerPlan) -> None:
-        plan.grasp_pose = PoseState(state.robot.tcp_pose.pos_w.clone(), state.robot.tcp_pose.quat_w.clone())
-        plan.pull_pose = PoseState(
-            state.robot.tcp_pose.pos_w + plan.outward * self.cfg.pull_distance,
-            state.robot.tcp_pose.quat_w.clone(),
-        )
-
-    def _lock_push_target(self, state: SceneState, plan: DrawerPlan) -> None:
-        joint_pos = self._drawer_joint_pos(state)
-        push_distance = (abs(joint_pos) if joint_pos is not None else abs(plan.initial_joint_pos)) + self.cfg.push_margin
-        plan.push_contact_pose = PoseState(state.robot.tcp_pose.pos_w.clone(), state.robot.tcp_pose.quat_w.clone())
-        plan.push_target_pose = PoseState(
-            state.robot.tcp_pose.pos_w - plan.outward * push_distance,
-            state.robot.tcp_pose.quat_w.clone(),
-        )
-
-    def _lock_retreat_pose(self, state: SceneState, plan: DrawerPlan) -> None:
-        plan.retreat_pose = PoseState(
-            state.robot.tcp_pose.pos_w + plan.outward * self.cfg.retreat_distance,
-            state.robot.tcp_pose.quat_w.clone(),
-        )
-
-    def _finish_step(
-        self,
-        state: SceneState,
-        desired: PoseState,
-        command_pose: PoseState,
-        gripper: float,
-    ) -> SkillCommand:
-        error = pose_error(state.robot.tcp_pose, desired)
-        self.runtime.final_error_pos = error.position
-        self.runtime.final_error_ori = error.orientation
-        self.runtime.last_command_pose = command_pose
-        self._update_joint_displacement(state)
-        return SkillCommand(command_pose, gripper, self.status)
-
-    def _drawer_joint_pos(self, state: SceneState) -> float | None:
+            return False
         cabinet = state.objects.get("cabinet")
         if cabinet is None:
-            return None
-        return cabinet.joint_pos.get(BOTTOM_DRAWER_JOINT)
+            self._fail(state, FailureReason.TARGET_LOST, "cabinet state missing")
+            return False
+        if joint_name not in cabinet.joint_pos:
+            self._fail(
+                state,
+                FailureReason.DRAWER_JOINT_MISSING,
+                f"{joint_name} missing; available={list(cabinet.joint_pos.keys())}",
+            )
+            return False
+        self.runtime.drawer_joint_name = joint_name
+        self.runtime.initial_joint_pos = float(cabinet.joint_pos[joint_name])
+        self.runtime.current_joint_pos = self.runtime.initial_joint_pos
+        self.runtime.max_joint_displacement = 0.0
+        print(
+            "[DrawerSkill] scripted_joint_start "
+            f"skill_type={self.request.skill_type.value} "
+            f"drawer_joint_names={list(cabinet.joint_pos.keys())} "
+            f"selected_drawer_joint={joint_name} "
+            f"initial_joint_pos={self.runtime.initial_joint_pos:.5f}",
+            flush=True,
+        )
+        return True
 
-    def _joint_displacement(self, state: SceneState) -> float:
-        joint_pos = self._drawer_joint_pos(state)
+    def _target_joint_pos(self) -> float:
+        if self.request.skill_type == SkillType.OPEN_DRAWER:
+            return self.cfg.open_target_joint_pos
+        return self.cfg.close_target_joint_pos
+
+    def _success_reached(self) -> bool:
+        if self.request.skill_type == SkillType.OPEN_DRAWER:
+            return self.runtime.current_joint_pos >= self.cfg.open_success_threshold
+        return abs(self.runtime.current_joint_pos) <= self.cfg.close_success_threshold
+
+    def _update_joint_progress(self, state: SceneState) -> None:
+        cabinet = state.objects.get("cabinet")
+        if cabinet is None:
+            self._fail(state, FailureReason.TARGET_LOST, "cabinet state missing")
+            return
+        joint_pos = cabinet.joint_pos.get(self.runtime.drawer_joint_name)
         if joint_pos is None:
-            return 0.0
-        displacement = abs(joint_pos - self.runtime.initial_joint_pos)
+            self._fail(state, FailureReason.DRAWER_JOINT_MISSING, f"{self.runtime.drawer_joint_name} missing")
+            return
+        self.runtime.current_joint_pos = float(joint_pos)
+        displacement = abs(self.runtime.current_joint_pos - self.runtime.initial_joint_pos)
         self.runtime.max_joint_displacement = max(self.runtime.max_joint_displacement, displacement)
-        return displacement
 
-    def _update_joint_displacement(self, state: SceneState) -> None:
-        self._joint_displacement(state)
+    def _command(self, state: SceneState, drawer_joint_target: float | None) -> SkillCommand:
+        self.runtime.last_command_pose = state.robot.tcp_pose
+        return SkillCommand(
+            tcp_pose_w=state.robot.tcp_pose,
+            gripper_command=1.0,
+            status=self.status,
+            drawer_joint_name=self.runtime.drawer_joint_name,
+            drawer_joint_target=drawer_joint_target,
+        )
 
     def _state_elapsed(self, state: SceneState) -> float:
         return max(0.0, state.sim_time - self.runtime.state_start_time)
@@ -547,21 +215,21 @@ class DrawerSkill:
         self._record_transition(state, old_state, new_state)
 
     def _record_transition(self, state: SceneState, old_state: str, new_state: str):
-        plan = self.runtime.plan
-        command_pose = self.runtime.last_command_pose or state.robot.tcp_pose
-        error = pose_error(state.robot.tcp_pose, command_pose)
-        joint_pos = self._drawer_joint_pos(state)
+        cabinet = state.objects.get("cabinet")
+        joint_pos = None if cabinet is None else cabinet.joint_pos.get(self.runtime.drawer_joint_name)
         record = {
             "time": round(state.sim_time, 4),
             "request_id": self.request.request_id,
             "skill": self.request.skill_type.value,
             "from": old_state,
             "to": new_state,
-            "joint_0": None if joint_pos is None else round(joint_pos, 5),
-            "tcp_position_error": round(error.position, 5),
-            "tcp_orientation_error_deg": round(math.degrees(error.orientation), 3),
+            "drawer_control_mode": self.runtime.drawer_control_mode,
+            "drawer_joint_name": self.runtime.drawer_joint_name,
+            "drawer_joint_pos": None if joint_pos is None else round(float(joint_pos), 5),
+            "drawer_joint_target": None
+            if self.runtime.drawer_joint_target is None
+            else round(self.runtime.drawer_joint_target, 5),
             "gripper_width": round(state.robot.gripper_width, 5),
-            "handle_pose": None if plan is None else format_pose(plan.handle_pose),
             "failure_reason": self.failure_reason.value or None,
             "failure_message": self.runtime.last_failure_message,
         }
@@ -574,6 +242,7 @@ class DrawerSkill:
         self.status = ExecutionStatus.FAILED
         self.failure_reason = reason
         self.runtime.last_failure_message = message
+        self.runtime.drawer_joint_target = None
         self._transition(state, "FAILED")
         print(f"[DrawerSkill] failure request={self.request.request_id} reason={reason.value} {message}", flush=True)
 
@@ -584,44 +253,8 @@ class DrawerSkill:
         print(
             "[DrawerSkill] success "
             f"request={self.request.request_id} "
+            f"joint_pos={self.runtime.current_joint_pos:.5f} "
+            f"target={self.runtime.drawer_joint_target:.5f} "
             f"max_joint_displacement={self.runtime.max_joint_displacement:.5f}",
             flush=True,
         )
-
-    def _log_plan(self, state: SceneState, plan: DrawerPlan):
-        cabinet = state.objects["cabinet"]
-        drawer_link_pose = cabinet.links[BOTTOM_DRAWER_LINK]
-        record = {
-            "skill_type": self.request.skill_type.value,
-            "drawer_link": BOTTOM_DRAWER_LINK,
-            "drawer_joint": BOTTOM_DRAWER_JOINT,
-            "drawer_joint_initial": round(plan.initial_joint_pos, 5),
-            "cabinet_root_pose": format_pose(cabinet.pose),
-            "drawer_link_pose": format_pose(drawer_link_pose),
-            "computed_handle_pose": format_pose(plan.handle_pose),
-            "outward": [round(float(v), 5) for v in plan.outward.detach().cpu().tolist()],
-            "grasp_quaternion": [round(float(v), 5) for v in plan.grasp_pose.quat_w.detach().cpu().tolist()],
-        }
-        print(f"[DrawerSkill] plan {record}", flush=True)
-
-    def _log_close_hold(self, plan: DrawerPlan):
-        hold_pose = self.runtime.close_hold_pose
-        record = {
-            "handle_center": format_pose(plan.handle_pose),
-            "planned_grasp_pose": format_pose(plan.grasp_pose),
-            "actual_close_hold_pose": None if hold_pose is None else format_pose(hold_pose),
-            "grasp_standoff": self.cfg.grasp_standoff,
-        }
-        print(f"[DrawerSkill] close_hold {record}", flush=True)
-
-    def _log_close_stability(self, state: SceneState, tcp_error, joint_jump: float):
-        if state.sim_time - self.runtime.last_close_stability_log_time < 0.20:
-            return
-        self.runtime.last_close_stability_log_time = state.sim_time
-        record = {
-            "gripper_width": round(state.robot.gripper_width, 5),
-            "tcp_shift": round(tcp_error.position, 5),
-            "tcp_rotation_deg": round(math.degrees(tcp_error.orientation), 3),
-            "max_joint_jump_deg": round(math.degrees(joint_jump), 3),
-        }
-        print(f"[DrawerSkill] close_stability {record}", flush=True)
