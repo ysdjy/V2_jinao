@@ -38,6 +38,8 @@ class OpenDrawerIKConfig:
     close_duration: float = 1.0
     reach_timeout: float = 16.0
     pull_timeout: float = 16.0
+    home_joint_threshold: float = 0.12  # rad: arm considered "home" when ||q - q_home|| below this
+    home_timeout: float = 6.0
 
 
 @dataclass
@@ -109,8 +111,12 @@ class OpenDrawerIKSkill:
             self._fail(state, FailureReason.REQUEST_INVALID, f"unknown target_drawer '{self.target_drawer}'")
             return
         self.obs_adapter = SelectedDrawerObsAdapter(self.env, self.target_drawer, env_id=self.adapter.env_id)
+        # neutral seed config: the robot's default arm pose (a good IK seed; avoids the joint6 limit
+        # solution the DLS IK falls into from an awkward post-place start).
+        robot = self.env.unwrapped.scene["robot"]
+        self.home_q = robot.data.default_joint_pos[self.adapter.env_id, self.adapter._joint_ids].clone()
         self.runtime = _Runtime(
-            state="MOVE_TO_PRE_GRASP",
+            state="MOVE_TO_HOME",
             start_time=state.sim_time,
             state_start_time=state.sim_time,
             drawer_joint_name=cfg["joint_name"],
@@ -118,7 +124,7 @@ class OpenDrawerIKSkill:
         )
         self.runtime.initial_joint_pos = self._drawer_pos()
         self.runtime.current_joint_pos = self.runtime.initial_joint_pos
-        self._record(state, "IDLE", "MOVE_TO_PRE_GRASP")
+        self._record(state, "IDLE", "MOVE_TO_HOME")
 
     def step(self, state: SceneState, dt: float) -> SkillCommand:
         if self.status == ExecutionStatus.IDLE:
@@ -130,6 +136,8 @@ class OpenDrawerIKSkill:
         gripper = 1.0
         target = None
 
+        if self.runtime.state == "MOVE_TO_HOME":
+            return self._home_step(state)
         if self.runtime.state == "MOVE_TO_PRE_GRASP":
             target = self._grasp_pose(self.cfg.pre_grasp_clearance)
             gripper = 1.0
@@ -182,6 +190,24 @@ class OpenDrawerIKSkill:
         )
 
     # ---- helpers ----------------------------------------------------------
+    def _home_step(self, state: SceneState) -> SkillCommand:
+        """Drive the arm to the neutral seed config (direct joint target, gripper open)."""
+        arm_q = state.robot.joint_pos[self.adapter._joint_ids]
+        dist = float(torch.linalg.norm(arm_q - self.home_q))
+        if dist <= self.cfg.home_joint_threshold:
+            self.runtime.stable_count += 1
+            if self.runtime.stable_count >= 3:
+                self._transition(state, "MOVE_TO_PRE_GRASP")
+        else:
+            self.runtime.stable_count = 0
+        if self._state_elapsed(state) > self.cfg.home_timeout:
+            self._transition(state, "MOVE_TO_PRE_GRASP")
+        self.last_q = self.home_q.clone()
+        return SkillCommand(
+            state.robot.tcp_pose, 1.0, self.status, control_mode="joint",
+            joint_target=self.home_q.clone(), drawer_joint_target=None,
+        )
+
     def _command(self, state: SceneState, target: PoseState | None, gripper: float) -> SkillCommand:
         if target is None:
             return self._hold(state, gripper)
