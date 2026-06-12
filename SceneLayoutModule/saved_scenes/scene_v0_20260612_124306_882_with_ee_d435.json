@@ -1,0 +1,61 @@
+{
+  "schema_version": "fp_instrument_v1",
+  "source_scene_usd": "/home1/banghai/Documents/IsaacLab/SceneLayoutModule/saved_scenes/scene_v0_20260612_124306_882.usd",
+  "instrumented_scene_usd": "/home1/banghai/Documents/IsaacLab/SceneLayoutModule/saved_scenes/scene_v0_20260612_124306_882_with_ee_d435.usd",
+  "camera_prim_path": "/World/envs/env_0/Robot/panda_hand/Sensors/d435_ee",
+  "camera_mode": "end_effector",
+  "mounted_link": "panda_hand",
+  "camera_frame": "d435_ee_color_optical_frame",
+  "resolution": {
+    "width": 640,
+    "height": 480
+  },
+  "sensor_types": {
+    "rgb": true,
+    "depth": true,
+    "segmentation": true
+  },
+  "discovered_cubes": [
+    "/World/envs/env_0/Cube_1",
+    "/World/envs/env_0/Cube_2",
+    "/World/envs/env_0/Cube_3"
+  ],
+  "default_target_cube": "cube_0",
+  "default_target_cube_prim": "/World/envs/env_0/Cube_1",
+  "semantic_labels_added": [
+    "cube_0",
+    "cube_1",
+    "cube_2"
+  ],
+  "did_not_modify_isaaclab_official_files": true,
+  "did_not_import_scenelayoutmodule_python": true,
+  "T_ee_camera": [
+    [
+      1.0,
+      0.0,
+      0.0,
+      0.05
+    ],
+    [
+      0.0,
+      1.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      1.0,
+      0.08
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "knife_candidates": [
+    "/World/envs/env_0/Knife"
+  ]
+}

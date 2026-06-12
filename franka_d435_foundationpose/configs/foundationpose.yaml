@@ -1,0 +1,24 @@
+# FoundationPose runtime configuration (FoundationPose side).
+#
+# The FoundationPose source code is NOT copied into this project. Clone it
+# separately and point `foundationpose_repo` at it.
+
+foundationpose_repo: /home1/banghai/Documents/FoundationPose
+weights_dir: /home1/banghai/Documents/FoundationPose/weights
+
+# Prefer the official Docker image if conda is unstable on your machine.
+use_docker: false
+
+# If FoundationPose / weights / CUDA are unavailable, fall back to the mock
+# estimator instead of erroring out. Set false to require the real backend.
+use_mock_if_unavailable: true
+
+device: cuda
+est_refine_iter: 5     # refinement iterations for the first `estimate`
+track_refine_iter: 2   # refinement iterations per `track` step
+
+debug: true
+debug_dir: outputs/debug_foundationpose
+
+# Mock-only: object distance (meters) placed in front of the camera.
+mock_object_depth_m: 0.5

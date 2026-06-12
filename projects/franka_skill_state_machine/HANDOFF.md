@@ -102,8 +102,20 @@ projects/franka_skill_state_machine/
   | cube_1(蓝)/cube_2(红)/cube_3(绿) | Cuboid 0.0406 | (0.4,0,0.0203)/(0.55,0.05,0.0203)/(0.6,-0.1,0.0203) | 单位 | — |
   | Cabinet | simv2/USD/Cabinet_44853/cabinet.usd | **(0.27402, 0.91583, 0.323)** | **(0.7071,0,0,0.7071)=绕Z +90°** | 0.62 |
   | Knife | simv2/USD/Knife_101054/knife.usd | (0.35,0.28,0.095) | 绕Z +90° | 0.12 |
-  | CoffeeMachine | SapienAssetPipeline/usd_assets/CoffeeMachine_103046/coffeemachine.usd | (0.43152,-0.48373,0.135) | 绕Z −90° | 0.2 |
+  | CoffeeMachine | SapienAssetPipeline/usd_assets/CoffeeMachine_103046/coffeemachine.usd | **(0.25740,-0.58547,0.135)** | 绕Z −90° | 0.2 |
+  | Microwave | SapienAssetPipeline/usd_assets/Microwave_7320/microwave_flattened.usd | **(0.66976,-0.61250,0.15)** | 绕Z −90° | 0.35 |
   | 3 个把手碰撞代理 | Cuboid 细条 (0.10,0.028,0.028) | 见下 | 单位 | (随柜子0.62) |
+
+  > **场景来源 = SceneLayoutModule（用户的场景编辑器）**。用户在 `SceneLayoutModule/scene_layout_ui.py`
+  > 里改/加物体后 `Save Both`，保存到 `SceneLayoutModule/saved_scenes/scene_v0_*.usd`。咖啡机/微波炉是
+  > **stage 根** prim（`/coffeemachine`、`/microwave_flattened`），**不在 JSON manifest 里**（manifest 只记
+  > `/World/envs/env_0/*`），所以同步它们必须直接读 USD。**一键同步**：
+  > `python SceneLayoutModule/inspect_saved_scene.py`（默认读最新 saved USD，打印每个物体的 pos/rot/scale），
+  > 再据此改 `stack_joint_pos_env_cfg.py` 的 `init_state`（pos/rot/scale）。资产映射：
+  > microwave_flattened→`Microwave_7320/microwave_flattened.usd`，coffeemachine→`CoffeeMachine_103046/coffeemachine.usd`。
+  > 微波炉是 revolute 门(joint_0)，当前作为 prop（actuator 夹住关节）；开/关门技能见 §10.3。
+  > 注意：UI/sequence 入口的 `SimpleSceneLayoutManager` 只在 reset 重排 cabinet/cube/knife，**不动**咖啡机/微波炉，
+  > 所以它们的部署位姿 = cfg `init_state`（改 cfg 即生效）。
 
 - `stack_joint_policy_env_cfg.py` → 注册 `Isaac-Stack-Cube-Franka-JointPolicy-v0`（高PD机器人，scale=1.0）。
 - `stack_ik_abs_env_cfg.py` → 注册 `Isaac-Stack-Cube-Franka-IK-Abs-v0`（旧 IK-Abs，仅 `skill_test_ui.py` 用）。
@@ -199,6 +211,12 @@ conda activate env_isaaclab
 # 抽屉关节扫描 / 把手标定（诊断）
 ./isaaclab.sh -p projects/franka_skill_state_machine/entries/debug_drawer_joint_scan.py --num_envs 1 --drawer_joint all --values 0.00,0.05,0.10,0.20,0.30 --disable_fabric --headless
 ./isaaclab.sh -p projects/franka_skill_state_machine/entries/debug_drawer_handle_calib.py --num_envs 1 --disable_fabric --headless
+# 微波炉开门：UI 选 "Open Door" + "Door target=Microwave"，或 headless：
+./isaaclab.sh -p projects/franka_skill_state_machine/entries/skill_sequence_joint.py --num_envs 1 \
+  --sequence open_door:microwave --grasp_backend joint_ik --place_backend joint_ik --seed 1 --speed 2.0 --max_steps 3000 --headless
+# 微波炉门几何标定（hinge/轴/把手 offset）
+./isaaclab.sh -p projects/franka_skill_state_machine/entries/debug_microwave_door_calib.py --num_envs 1 --disable_fabric --angles 0,30,60,90 --headless
+# 速度：UI 下拉 "Skill speed"，或任意入口加 --speed 3.0
 ```
 
 ---
@@ -222,12 +240,36 @@ conda activate env_isaaclab
    但 env cfg 仍引用 `simv2/USD/Cabinet_44853/...` 和 `simv2/USD/Knife_101054/...`。
    归集 = 把 `stack_joint_pos_env_cfg.py` 里 cabinet/knife 的 `usd_path`（`_simv2_usd_path(...)`）改指向
    `SapienAssetPipeline/usd_assets/...`（资产已就位），然后跑一次 env 加载测试。
-3. **微波炉任务（用户新需求，未做）**：把咖啡机换成 `SapienAssetPipeline/usd_assets/Microwave_7320`（同位置附近），
-   注意摆放姿态/尺寸让 Franka 够得到、给**微波炉门把手加碰撞体**，再做**开门/关门技能块**
-   （和开/关抽屉技能一样：状态机给门把手 pose → 技能自己引导机器人开/关门）。微波炉是**转动门**（revolute），
-   不是平移抽屉，开门技能需要绕铰链做圆弧轨迹（可参考 drawer 技能，但 PULL 改成绕门轴的弧线）。
+3. **微波炉开门（已实现技能模块，剩两个非技能阻塞）**：微波炉已加入场景（§4），并做了**门把手碰撞代理 +
+   开/关门技能块**（见下「本次新增」）。技能正确、已接入状态机、端到端可跑（自然姿态接近把手），但在**当前微波炉
+   摆位**下有两处**非技能**阻塞，需要后续解决：
+   - (a) **门把手超出 Franka 触及范围 ~7cm**：当前微波炉在 world ≈(0.67,−0.61)，把手在 ≈(0.48,−0.44,0.13)，
+     手臂自然姿态最近只能到 y≈−0.37（差 0.08m）。→ 在 **SceneLayoutModule 把微波炉往机器人方向挪近**（更靠 +Y / −X），
+     再用 `inspect_saved_scene.py` 同步 cfg（见 [scene-layout-sync]）。
+   - (b) **门 asset 碰撞卡死，物理只能开 ~10°**：门(link_0)与机体(link_1)的 convexHull 碰撞重叠，自由门关节也只能
+     转到 ~10°、90° 直接爆（同下抽屉那类 asset 缺陷）。→ 需重做门/机体碰撞网格（convexDecomposition / 掏空腔体）
+     或换 asset。`open_success_angle` 已暂设 ~8° 以适配。
 4. learned_drawer 若要走学习路线：需正式训练 + 把手 obs 精修；且训练用普通 PD、部署用高PD+无重力，
    存在 PD 不一致（已在 JOINT_PLAN_NOTES 记录）。
+
+### 本次新增（2026-06-12）
+- **技能执行速度可调（全局）**：所有技能的每步运动都过 `runtime/base_skill.step_pose`，加了全局
+  `set_speed_scale/get_speed_scale`（夹在 step_pose 里乘到 max_pos_step/max_ori_step，clamp [0.25,8]）。
+  joint UI 加了 **"Skill speed (all skills)"** 下拉（0.5/1/2/3/5x，**默认 2x**，实时可调）；两个入口都加了 `--speed`。
+  headless 验证 4x：每步位移≈4×、grasp+place 仍成功。
+- **微波炉开/关门技能模块**（通用、可被状态机调用）：
+  - `skills/microwave_door_skill.py`：`OpenDoorIKSkill`/`CloseDoorIKSkill`（共享 `DoorIKSkill`）——绕**竖直铰链**做
+    **圆弧**轨迹（不是抽屉的直线 pull）。阶段 MOVE_TO_HOME→PRE_GRASP→APPROACH→CLOSE_GRIPPER→SWEEP；
+    实时读门 link_0 body 位姿算 hinge/轴/把手/门角；抓取用**前向下压 55° 接近**竖直把手（手指水平夹，接触法向即可
+    推门开）。**绝不**直接写门关节（纯物理交互）。
+  - 配置：`source/.../franka/microwave_door_config.py`（canonical，含标定常量 + asset/触及 caveat），
+    `runtime/microwave_door_config.py` re-export（仿 drawer_target_config 模式）。
+  - 门把手碰撞代理：env cfg 里 `scene.microwave_handle_proxy`（/Microwave/link_0 下青色半透明 Cuboid，带碰撞）——
+    既**可视化碰撞体**又给夹爪可抓的把手条。
+  - 标定脚本：`entries/debug_microwave_door_calib.py`（扫 joint_0、读门 link_0 位姿/AABB，导出 hinge/轴/把手 offset）。
+  - 接入：`SkillType.OPEN_DOOR/CLOSE_DOOR` + executor `_make_door_skill` + UI 技能下拉 & "Door target" 下拉 +
+    两入口序列支持 `open_door:microwave`/`close_door:microwave`；UI/sequence 入口在加载时**把微波炉门关节 stiffness 设 0**
+    （竖直铰链不会因重力下垂），让技能能物理推门。
 
 ## 11. 最近修过的坑（避免重复踩）
 

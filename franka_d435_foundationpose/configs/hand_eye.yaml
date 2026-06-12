@@ -1,0 +1,29 @@
+# Hand-eye extrinsic: the pose of the D435 color optical frame in the Franka
+# end-effector frame. Convention is T_target_source (see frame_conventions.py).
+#
+# T_ee_camera transforms a point from the camera frame to the end-effector frame:
+#     p_ee = T_ee_camera @ p_camera
+#
+# !!! PLACEHOLDER VALUES !!!
+# For the real robot you MUST run a hand-eye calibration (e.g. easy_handeye,
+# MoveIt hand-eye, or an AprilTag/Charuco routine) and replace these numbers.
+# Without an accurate T_ee_camera, the object pose in the base frame is wrong.
+
+camera_frame: d435_color_optical_frame
+ee_frame: franka_hand
+base_frame: panda_link0
+
+convention: "T_target_source"
+
+T_ee_camera:
+  # Camera position in the end-effector frame (meters).
+  translation_m: [0.05, 0.0, 0.08]
+  # Camera orientation in the end-effector frame as a quaternion [x, y, z, w].
+  quaternion_xyzw: [0.0, 0.0, 0.0, 1.0]
+  # Optional: provide a full 4x4 matrix instead (overrides the two fields above).
+  matrix: null
+
+notes:
+  - "This is a placeholder transform."
+  - "For real robot deployment, perform hand-eye calibration."
+  - "T_ee_camera transforms points from camera frame to end-effector frame."

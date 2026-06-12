@@ -1,0 +1,33 @@
+# D435 camera configuration shared by the sim and real providers.
+#
+# Real D435 factory intrinsics differ per device; the real provider always reads
+# the live intrinsics from pyrealsense2. These values are used by the IsaacLab
+# sim camera and as a documented reference / fallback.
+
+camera_frame: d435_color_optical_frame
+
+stream:
+  width: 640
+  height: 480
+  fps: 30
+  align_depth_to_color: true
+
+# Approximate D435 color intrinsics @ 640x480 (reference only).
+intrinsics_reference:
+  fx: 615.0
+  fy: 615.0
+  cx: 320.0
+  cy: 240.0
+  depth_unit: meter
+
+# IsaacLab sim camera spawn parameters (PinholeCameraCfg). focal_length is tuned
+# so fx ~= 615 px at width=640 with horizontal_aperture=20.955 mm.
+sim:
+  focal_length_mm: 20.1
+  horizontal_aperture_mm: 20.955
+  clipping_range_m: [0.05, 6.0]
+
+# RealSense depth scale (meters per raw unit). The live provider reads this from
+# the device; shown here for reference (D435 is typically 0.001).
+realsense:
+  depth_scale_reference: 0.001

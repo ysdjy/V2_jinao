@@ -73,7 +73,30 @@ def pose_error(current: PoseState, desired: PoseState) -> PoseError:
     return PoseError(pos_error, ori_error)
 
 
+# --- Global skill speed scale -------------------------------------------------
+# A single multiplier applied to every per-step position/orientation increment that any skill
+# feeds through ``step_pose`` (grasp / place / open-drawer / close-drawer / open-door / close-door).
+# 1.0 = original tuned speed. The interactive UI exposes this so the user can speed up / slow down
+# all skill motion live without re-tuning per-skill configs. Headless sequence runs default to 1.0.
+_SPEED_SCALE = [1.0]
+SPEED_SCALE_MIN = 0.25
+SPEED_SCALE_MAX = 8.0
+
+
+def set_speed_scale(scale: float) -> float:
+    """Set the global skill motion speed multiplier (clamped to [SPEED_SCALE_MIN, SPEED_SCALE_MAX])."""
+    _SPEED_SCALE[0] = float(min(max(scale, SPEED_SCALE_MIN), SPEED_SCALE_MAX))
+    return _SPEED_SCALE[0]
+
+
+def get_speed_scale() -> float:
+    return _SPEED_SCALE[0]
+
+
 def step_pose(current: PoseState, desired: PoseState, max_pos_step: float, max_ori_step: float) -> PoseState:
+    scale = _SPEED_SCALE[0]
+    max_pos_step = max_pos_step * scale
+    max_ori_step = max_ori_step * scale
     delta = desired.pos_w - current.pos_w
     dist = torch.linalg.norm(delta)
     if float(dist) > max_pos_step:

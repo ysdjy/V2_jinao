@@ -73,3 +73,35 @@ tests/
 # TacSL sensor
 **/tactile_record/*
 **/gelsight_r15_data/*
+
+# ---- Project artifacts (regenerable; too big / not for git) ----
+# Python virtualenvs (dirs and symlinks)
+**/.venv/
+**/.venv
+**/.venv_openpi/
+**/.venv_openpi
+**/.venv-gello/
+**/.venv-gello
+**/venv/
+# Third-party clones (recreated by setup scripts)
+pi05_isaacsim_baseline/third_party/openpi/
+projects/gello_franka_teleop/third_party/gello_software/
+projects/gello_franka_teleop/third_party/DynamixelSDK/
+franka_ws/
+# Model checkpoints / weights
+**/policies/checkpoints/
+**/*.ckpt
+**/*.safetensors
+**/*.pt
+**/*.pth
+**/*.npz
+# Datasets / recordings (HDF5 + LeRobot + normalized)
+**/data/raw_hdf5/
+**/data/lerobot/
+**/data/processed/
+**/*.hdf5
+**/*.parquet
+# Misc large binaries
+**/*.bin
+**/*.onnx
+**/*.engine

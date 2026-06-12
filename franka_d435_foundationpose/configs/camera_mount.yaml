@@ -1,0 +1,68 @@
+# Camera mounting configuration.
+#
+# DEFAULT is end_effector: a D435-like RGB-D camera mounted on the Franka
+# end-effector (hand). The fixed_scene mode is a fallback / debug option only.
+#
+# Convention is T_target_source everywhere (see transforms/frame_conventions.py).
+
+default_mode: end_effector
+
+modes:
+
+  # ---------------------------------------------------------------- DEFAULT --
+  end_effector:
+    camera_name: d435_ee
+    camera_frame: d435_ee_color_optical_frame
+    # Candidate end-effector link names to attach under (first match wins).
+    parent_link_candidates:
+      - franka_hand
+      - panda_hand
+      - panda_link8
+      - hand
+      - gripper
+    # Camera prim is created at "<robot>/<ee_link>/<prim_path_suffix>".
+    prim_path_suffix: Sensors/d435_ee
+    resolution:
+      width: 640
+      height: 480
+    sensor_types:
+      rgb: true
+      depth: true
+      segmentation: true
+    # D435-like sim intrinsics (focal_length tuned so fx ~= 615 px @ 640 width).
+    sim_optics:
+      focal_length_mm: 20.1
+      horizontal_aperture_mm: 20.955
+      clipping_range_m: [0.05, 6.0]
+    # Hand-eye extrinsic: camera -> ee. PLACEHOLDER for sim; calibrate for real.
+    T_ee_camera:
+      convention: T_target_source
+      translation_m: [0.05, 0.0, 0.08]
+      quaternion_xyzw: [0.0, 0.0, 0.0, 1.0]
+    notes:
+      - "Default mode. Simulates a D435 mounted on the Franka end-effector."
+      - "T_ee_camera is a placeholder and must be replaced by real hand-eye calibration for hardware."
+
+  # -------------------------------------------------------- FALLBACK / DEBUG --
+  fixed_scene:
+    camera_name: fixed_d435_01
+    camera_frame: fixed_d435_01_color_optical_frame
+    prim_path: /World/Sensors/fixed_d435_01
+    resolution:
+      width: 640
+      height: 480
+    sensor_types:
+      rgb: true
+      depth: true
+      segmentation: true
+    sim_optics:
+      focal_length_mm: 20.1
+      horizontal_aperture_mm: 20.955
+      clipping_range_m: [0.05, 8.0]
+    # World-frame placement via eye + look-at target (T_world_camera).
+    pose:
+      convention: T_world_camera
+      translation_m: [1.2, -0.8, 1.0]
+      look_at_m: [0.4, 0.0, 0.4]
+    notes:
+      - "Fallback/debug mode only. A fixed environment camera, not the default."

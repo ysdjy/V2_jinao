@@ -12,6 +12,7 @@ from isaaclab.utils import math as math_utils
 
 from runtime.base_skill import SkillCommand
 from skills.close_drawer_skill import CloseDrawerIKSkill
+from skills.microwave_door_skill import CloseDoorIKSkill, OpenDoorIKSkill
 from learned_drawer.custom_drawer_joint_skill import CustomDrawerJointSkill
 from runtime.drawer_skill import DrawerSkill
 from skills.open_drawer_skill import OpenDrawerIKSkill
@@ -97,11 +98,16 @@ class SkillExecutor:
         return self.status_text
 
     def start(self, request: SkillRequest, state: SceneState) -> SkillResult | None:
-        if request.skill_type in (SkillType.OPEN_DRAWER, SkillType.CLOSE_DRAWER) and self.held_object is not None:
+        if request.skill_type in (
+            SkillType.OPEN_DRAWER,
+            SkillType.CLOSE_DRAWER,
+            SkillType.OPEN_DOOR,
+            SkillType.CLOSE_DOOR,
+        ) and self.held_object is not None:
             return self._make_immediate_failure(
                 request,
                 FailureReason.RELEASE_HELD_OBJECT_FIRST,
-                "Place or release the held object before operating the drawer.",
+                "Place or release the held object before operating the drawer/door.",
             )
 
         if self.active_skill is not None:
@@ -153,6 +159,14 @@ class SkillExecutor:
             self.status = self.active_skill.status
             self.status_text = self.status.value
             return None
+        elif request.skill_type in (SkillType.OPEN_DOOR, SkillType.CLOSE_DOOR):
+            if self.backend.adapter is None or self.backend.drawer_env is None:
+                raise RuntimeError("door skills (open_door/close_door) require backend.adapter and drawer_env")
+            self.active_skill = self._make_door_skill(request)
+            self.active_skill.start(state)
+            self.status = self.active_skill.status
+            self.status_text = self.status.value
+            return None
         else:
             self.active_skill = None
         self.status = ExecutionStatus.NOT_IMPLEMENTED
@@ -170,6 +184,12 @@ class SkillExecutor:
         self._append_result(result)
         print("NOT_IMPLEMENTED: this skill will be implemented in a later stage")
         return result
+
+    def _make_door_skill(self, request: SkillRequest):
+        """IK-arc open/close revolute-door skill (microwave). Always physical (no joint cheating)."""
+        if request.skill_type == SkillType.OPEN_DOOR:
+            return OpenDoorIKSkill(request, self.backend.drawer_env, self.backend.adapter)
+        return CloseDoorIKSkill(request, self.backend.drawer_env, self.backend.adapter)
 
     def _make_drawer_skill(self, request: SkillRequest):
         if self.backend.mode != "joint":

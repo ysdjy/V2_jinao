@@ -40,6 +40,7 @@ CABINET_BOTTOM_HANDLE_PROXY_SIZE = (0.10, 0.028, 0.028)
 # Position = calibrated handle offset (link BODY frame, from debug_drawer_handle_calib.py) divided by
 # the cabinet USD scale, because the proxy is a child of the link prim (pre-scale local frame).
 from .custom_drawer_config import HANDLE_LOCAL_OFFSET as _HANDLE_OFFSET  # noqa: E402
+from . import microwave_door_config as _mw_door  # noqa: E402
 
 CABINET_SCALE = 0.62
 CABINET_TOP_DRAWER_LINK = "link_0"
@@ -316,7 +317,8 @@ class FrankaCubeStackEnvCfg(StackEnvCfg):
             ),
         )
 
-        # Coffee machine prop — matches the user's fixed scene (saved_scenes/v0_layout): a fixed-base
+        # Coffee machine prop — matches the user's latest SceneLayoutModule scene
+        # (saved_scenes/scene_v0_20260612_124306_882_with_ee_d435.usd, prim /coffeemachine): a fixed-base
         # articulation placed on the -Y side, yaw -90deg about Z, scale 0.2. It is a scene
         # obstacle/prop (not a manipulation target); its joints are held by a soft implicit actuator.
         self.scene.coffee_machine = ArticulationCfg(
@@ -335,7 +337,7 @@ class FrankaCubeStackEnvCfg(StackEnvCfg):
                 semantic_tags=[("class", "coffee_machine")],
             ),
             init_state=ArticulationCfg.InitialStateCfg(
-                pos=(0.43151966, -0.48372657, 0.135),
+                pos=(0.25740, -0.58547, 0.135),
                 rot=(0.70710678, 0.0, 0.0, -0.70710678),
                 joint_pos={".*": 0.0},
                 joint_vel={".*": 0.0},
@@ -349,6 +351,66 @@ class FrankaCubeStackEnvCfg(StackEnvCfg):
                     damping=10.0,
                 ),
             },
+        )
+
+        # Microwave prop — added from the user's latest SceneLayoutModule scene
+        # (saved_scenes/scene_v0_20260612_124306_882_with_ee_d435.usd, prim /microwave_flattened):
+        # fixed-base articulation on the -Y side, yaw -90deg about Z, scale 0.35. It has a revolute
+        # door (joint_0) plus a fixed joint_1; for now both joints are held closed by a soft implicit
+        # actuator (a dedicated open/close-door skill can later release the door stiffness, like the
+        # cabinet ik_pull backend does). Scene obstacle/prop, not a manipulation target.
+        self.scene.microwave = ArticulationCfg(
+            prim_path="{ENV_REGEX_NS}/Microwave",
+            spawn=UsdFileCfg(
+                usd_path=_repo_path("SapienAssetPipeline/usd_assets/Microwave_7320/microwave_flattened.usd"),
+                scale=(0.35, 0.35, 0.35),
+                activate_contact_sensors=False,
+                rigid_props=RigidBodyPropertiesCfg(disable_gravity=False, max_depenetration_velocity=5.0),
+                articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+                    enabled_self_collisions=False,
+                    solver_position_iteration_count=12,
+                    solver_velocity_iteration_count=1,
+                ),
+                collision_props=sim_utils.CollisionPropertiesCfg(contact_offset=0.005, rest_offset=0.0),
+                semantic_tags=[("class", "microwave")],
+            ),
+            init_state=ArticulationCfg.InitialStateCfg(
+                pos=(0.66976, -0.61250, 0.15),
+                rot=(0.70710678, 0.0, 0.0, -0.70710678),
+                joint_pos={".*": 0.0},
+                joint_vel={".*": 0.0},
+            ),
+            actuators={
+                "all_joints": ImplicitActuatorCfg(
+                    joint_names_expr=["joint_.*"],
+                    effort_limit_sim=50.0,
+                    velocity_limit_sim=100.0,
+                    stiffness=100.0,
+                    damping=10.0,
+                ),
+            },
+        )
+
+        # Microwave door handle collision proxy (visible, semi-transparent, with collision) on the
+        # door body (link_0), at the calibrated free-edge offset. Serves two purposes: (1) visualizes
+        # the door's graspable collision body, (2) gives the gripper a clean bar to physically grab
+        # for the open/close-door skill. Child of the scaled link prim, so its authored local
+        # translate/size are divided by the microwave scale (mirrors the cabinet handle proxies).
+        self.scene.microwave_handle_proxy = AssetBaseCfg(
+            prim_path="{ENV_REGEX_NS}/Microwave/" + _mw_door.DOOR_LINK + "/DoorHandleProxy",
+            init_state=AssetBaseCfg.InitialStateCfg(pos=_mw_door.HANDLE_PROXY_LOCAL_OFFSET),
+            spawn=sim_utils.CuboidCfg(
+                size=_mw_door.HANDLE_PROXY_SIZE,
+                visible=True,
+                physics_material=sim_utils.RigidBodyMaterialCfg(
+                    static_friction=4.0,
+                    dynamic_friction=4.0,
+                    restitution=0.0,
+                    friction_combine_mode="max",
+                ),
+                collision_props=sim_utils.CollisionPropertiesCfg(contact_offset=0.004, rest_offset=0.0),
+                visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.05, 0.85, 1.0), opacity=0.4),
+            ),
         )
 
         # Listens to the required transforms

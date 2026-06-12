@@ -1,0 +1,1059 @@
+{
+  "env_root": "/World/envs/env_0",
+  "meters_per_unit": 1.0,
+  "objects": [
+    {
+      "active": true,
+      "applied_schemas": [
+        "PhysicsArticulationRootAPI",
+        "PhysxArticulationAPI",
+        "SemanticsLabelsAPI:class"
+      ],
+      "loaded": true,
+      "name": "Robot",
+      "path": "/World/envs/env_0/Robot",
+      "physics": [
+        {
+          "kind": "ArticulationRootAPI",
+          "path": "/World/envs/env_0/Robot"
+        },
+        {
+          "kind": "RigidBodyAPI",
+          "path": "/World/envs/env_0/Robot/panda_link0"
+        },
+        {
+          "kind": "PhysicsRevoluteJoint",
+          "path": "/World/envs/env_0/Robot/panda_link0/panda_joint1"
+        },
+        {
+          "kind": "PhysicsFixedJoint",
+          "path": "/World/envs/env_0/Robot/rootJoint"
+        },
+        {
+          "kind": "RigidBodyAPI",
+          "path": "/World/envs/env_0/Robot/panda_link1"
+        },
+        {
+          "kind": "PhysicsRevoluteJoint",
+          "path": "/World/envs/env_0/Robot/panda_link1/panda_joint2"
+        },
+        {
+          "kind": "RigidBodyAPI",
+          "path": "/World/envs/env_0/Robot/panda_link2"
+        },
+        {
+          "kind": "PhysicsRevoluteJoint",
+          "path": "/World/envs/env_0/Robot/panda_link2/panda_joint3"
+        },
+        {
+          "kind": "RigidBodyAPI",
+          "path": "/World/envs/env_0/Robot/panda_link3"
+        },
+        {
+          "kind": "PhysicsRevoluteJoint",
+          "path": "/World/envs/env_0/Robot/panda_link3/panda_joint4"
+        },
+        {
+          "kind": "RigidBodyAPI",
+          "path": "/World/envs/env_0/Robot/panda_link4"
+        },
+        {
+          "kind": "PhysicsRevoluteJoint",
+          "path": "/World/envs/env_0/Robot/panda_link4/panda_joint5"
+        },
+        {
+          "kind": "RigidBodyAPI",
+          "path": "/World/envs/env_0/Robot/panda_link5"
+        },
+        {
+          "kind": "PhysicsRevoluteJoint",
+          "path": "/World/envs/env_0/Robot/panda_link5/panda_joint6"
+        },
+        {
+          "kind": "RigidBodyAPI",
+          "path": "/World/envs/env_0/Robot/panda_link6"
+        },
+        {
+          "kind": "PhysicsRevoluteJoint",
+          "path": "/World/envs/env_0/Robot/panda_link6/panda_joint7"
+        },
+        {
+          "kind": "RigidBodyAPI",
+          "path": "/World/envs/env_0/Robot/panda_link7"
+        },
+        {
+          "kind": "PhysicsFixedJoint",
+          "path": "/World/envs/env_0/Robot/panda_link7/panda_hand_joint"
+        },
+        {
+          "kind": "RigidBodyAPI",
+          "path": "/World/envs/env_0/Robot/panda_hand"
+        },
+        {
+          "kind": "PhysicsPrismaticJoint",
+          "path": "/World/envs/env_0/Robot/panda_hand/panda_finger_joint1"
+        },
+        {
+          "kind": "PhysicsPrismaticJoint",
+          "path": "/World/envs/env_0/Robot/panda_hand/panda_finger_joint2"
+        },
+        {
+          "kind": "RigidBodyAPI",
+          "path": "/World/envs/env_0/Robot/panda_leftfinger"
+        },
+        {
+          "kind": "RigidBodyAPI",
+          "path": "/World/envs/env_0/Robot/panda_rightfinger"
+        }
+      ],
+      "subtree_assets": [
+        {
+          "asset_path": "../../Connection/assets/Isaac/IsaacLab/Robots/FrankaEmika/panda_instanceable.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Robot",
+          "prim_path": ""
+        },
+        {
+          "asset_path": "./Props/panda_link0.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Robot/panda_link0/visuals",
+          "prim_path": "/Root"
+        },
+        {
+          "asset_path": "./Props/instanceable_collision_meshes.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Robot/panda_link0/collisions",
+          "prim_path": "/panda_link0_collisions"
+        },
+        {
+          "asset_path": "./Props/panda_link1.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Robot/panda_link1/visuals",
+          "prim_path": "/Root"
+        },
+        {
+          "asset_path": "./Props/instanceable_collision_meshes.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Robot/panda_link1/collisions",
+          "prim_path": "/panda_link1_collisions"
+        },
+        {
+          "asset_path": "./Props/panda_link2.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Robot/panda_link2/visuals",
+          "prim_path": "/Root"
+        },
+        {
+          "asset_path": "./Props/instanceable_collision_meshes.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Robot/panda_link2/collisions",
+          "prim_path": "/panda_link2_collisions"
+        },
+        {
+          "asset_path": "./Props/panda_link3.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Robot/panda_link3/visuals",
+          "prim_path": "/Root"
+        },
+        {
+          "asset_path": "./Props/instanceable_collision_meshes.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Robot/panda_link3/collisions",
+          "prim_path": "/panda_link3_collisions"
+        },
+        {
+          "asset_path": "./Props/panda_link4.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Robot/panda_link4/visuals",
+          "prim_path": "/Root"
+        },
+        {
+          "asset_path": "./Props/instanceable_collision_meshes.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Robot/panda_link4/collisions",
+          "prim_path": "/panda_link4_collisions"
+        },
+        {
+          "asset_path": "./Props/panda_link5.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Robot/panda_link5/visuals",
+          "prim_path": "/Root"
+        },
+        {
+          "asset_path": "./Props/instanceable_collision_meshes.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Robot/panda_link5/collisions",
+          "prim_path": "/panda_link5_collisions"
+        },
+        {
+          "asset_path": "./Props/panda_link6.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Robot/panda_link6/visuals",
+          "prim_path": "/Root"
+        },
+        {
+          "asset_path": "./Props/instanceable_collision_meshes.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Robot/panda_link6/collisions",
+          "prim_path": "/panda_link6_collisions"
+        },
+        {
+          "asset_path": "./Props/panda_link7.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Robot/panda_link7/visuals",
+          "prim_path": "/Root"
+        },
+        {
+          "asset_path": "./Props/instanceable_collision_meshes.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Robot/panda_link7/collisions",
+          "prim_path": "/panda_link7_collisions"
+        },
+        {
+          "asset_path": "./Props/panda_hand.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Robot/panda_hand/visuals",
+          "prim_path": "/Root"
+        },
+        {
+          "asset_path": "./Props/instanceable_collision_meshes.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Robot/panda_hand/collisions",
+          "prim_path": "/panda_hand_collisions"
+        },
+        {
+          "asset_path": "./Props/panda_leftfinger.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Robot/panda_leftfinger/visuals",
+          "prim_path": "/Root"
+        },
+        {
+          "asset_path": "./Props/instanceable_collision_meshes.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Robot/panda_leftfinger/collisions",
+          "prim_path": "/panda_leftfinger_collisions"
+        },
+        {
+          "asset_path": "./Props/panda_rightfinger.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Robot/panda_rightfinger/visuals",
+          "prim_path": "/Root"
+        },
+        {
+          "asset_path": "./Props/instanceable_collision_meshes.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Robot/panda_rightfinger/collisions",
+          "prim_path": "/panda_rightfinger_collisions"
+        }
+      ],
+      "type": "Xform",
+      "visibility": "inherited",
+      "world_transform": {
+        "rotation_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "xform": {
+        "ordered_ops": [
+          {
+            "name": "xformOp:translate",
+            "type": "UsdGeom.XformOp.TypeTranslate",
+            "value": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "name": "xformOp:orient",
+            "type": "UsdGeom.XformOp.TypeOrient",
+            "value": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "name": "xformOp:scale",
+            "type": "UsdGeom.XformOp.TypeScale",
+            "value": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "translate": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "active": true,
+      "applied_schemas": [
+        "PhysicsMassAPI",
+        "PhysicsRigidBodyAPI",
+        "PhysxRigidBodyAPI",
+        "SemanticsLabelsAPI:class"
+      ],
+      "loaded": true,
+      "name": "Cube_1",
+      "path": "/World/envs/env_0/Cube_1",
+      "physics": [
+        {
+          "kind": "RigidBodyAPI",
+          "path": "/World/envs/env_0/Cube_1"
+        },
+        {
+          "kind": "CollisionAPI",
+          "path": "/World/envs/env_0/Cube_1/geometry/mesh"
+        }
+      ],
+      "subtree_assets": [],
+      "type": "Xform",
+      "visibility": "inherited",
+      "world_transform": {
+        "rotation_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "translation": [
+          0.4000000059604645,
+          0.0,
+          0.0203000009059906
+        ]
+      },
+      "xform": {
+        "ordered_ops": [
+          {
+            "name": "xformOp:translate",
+            "type": "UsdGeom.XformOp.TypeTranslate",
+            "value": [
+              0.4000000059604645,
+              0.0,
+              0.0203000009059906
+            ]
+          },
+          {
+            "name": "xformOp:orient",
+            "type": "UsdGeom.XformOp.TypeOrient",
+            "value": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "name": "xformOp:scale",
+            "type": "UsdGeom.XformOp.TypeScale",
+            "value": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "translate": [
+          0.4000000059604645,
+          0.0,
+          0.0203000009059906
+        ]
+      }
+    },
+    {
+      "active": true,
+      "applied_schemas": [
+        "PhysicsMassAPI",
+        "PhysicsRigidBodyAPI",
+        "PhysxRigidBodyAPI",
+        "SemanticsLabelsAPI:class"
+      ],
+      "loaded": true,
+      "name": "Cube_2",
+      "path": "/World/envs/env_0/Cube_2",
+      "physics": [
+        {
+          "kind": "RigidBodyAPI",
+          "path": "/World/envs/env_0/Cube_2"
+        },
+        {
+          "kind": "CollisionAPI",
+          "path": "/World/envs/env_0/Cube_2/geometry/mesh"
+        }
+      ],
+      "subtree_assets": [],
+      "type": "Xform",
+      "visibility": "inherited",
+      "world_transform": {
+        "rotation_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "translation": [
+          0.550000011920929,
+          0.05000000074505806,
+          0.0203000009059906
+        ]
+      },
+      "xform": {
+        "ordered_ops": [
+          {
+            "name": "xformOp:translate",
+            "type": "UsdGeom.XformOp.TypeTranslate",
+            "value": [
+              0.550000011920929,
+              0.05000000074505806,
+              0.0203000009059906
+            ]
+          },
+          {
+            "name": "xformOp:orient",
+            "type": "UsdGeom.XformOp.TypeOrient",
+            "value": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "name": "xformOp:scale",
+            "type": "UsdGeom.XformOp.TypeScale",
+            "value": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "translate": [
+          0.550000011920929,
+          0.05000000074505806,
+          0.0203000009059906
+        ]
+      }
+    },
+    {
+      "active": true,
+      "applied_schemas": [
+        "PhysicsMassAPI",
+        "PhysicsRigidBodyAPI",
+        "PhysxRigidBodyAPI",
+        "SemanticsLabelsAPI:class"
+      ],
+      "loaded": true,
+      "name": "Cube_3",
+      "path": "/World/envs/env_0/Cube_3",
+      "physics": [
+        {
+          "kind": "RigidBodyAPI",
+          "path": "/World/envs/env_0/Cube_3"
+        },
+        {
+          "kind": "CollisionAPI",
+          "path": "/World/envs/env_0/Cube_3/geometry/mesh"
+        }
+      ],
+      "subtree_assets": [],
+      "type": "Xform",
+      "visibility": "inherited",
+      "world_transform": {
+        "rotation_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "translation": [
+          0.6000000238418579,
+          -0.10000000149011612,
+          0.0203000009059906
+        ]
+      },
+      "xform": {
+        "ordered_ops": [
+          {
+            "name": "xformOp:translate",
+            "type": "UsdGeom.XformOp.TypeTranslate",
+            "value": [
+              0.6000000238418579,
+              -0.10000000149011612,
+              0.0203000009059906
+            ]
+          },
+          {
+            "name": "xformOp:orient",
+            "type": "UsdGeom.XformOp.TypeOrient",
+            "value": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "name": "xformOp:scale",
+            "type": "UsdGeom.XformOp.TypeScale",
+            "value": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "translate": [
+          0.6000000238418579,
+          -0.10000000149011612,
+          0.0203000009059906
+        ]
+      }
+    },
+    {
+      "active": true,
+      "applied_schemas": [
+        "IsaacRobotAPI",
+        "SemanticsLabelsAPI:class"
+      ],
+      "loaded": true,
+      "name": "Cabinet",
+      "path": "/World/envs/env_0/Cabinet",
+      "physics": [
+        {
+          "kind": "RigidBodyAPI",
+          "path": "/World/envs/env_0/Cabinet/base"
+        },
+        {
+          "kind": "RigidBodyAPI",
+          "path": "/World/envs/env_0/Cabinet/link_3"
+        },
+        {
+          "kind": "PhysicsFixedJoint",
+          "path": "/World/envs/env_0/Cabinet/joints/joint_3"
+        },
+        {
+          "kind": "PhysicsPrismaticJoint",
+          "path": "/World/envs/env_0/Cabinet/joints/joint_0"
+        },
+        {
+          "kind": "PhysicsPrismaticJoint",
+          "path": "/World/envs/env_0/Cabinet/joints/joint_1"
+        },
+        {
+          "kind": "PhysicsPrismaticJoint",
+          "path": "/World/envs/env_0/Cabinet/joints/joint_2"
+        },
+        {
+          "kind": "RigidBodyAPI",
+          "path": "/World/envs/env_0/Cabinet/link_0"
+        },
+        {
+          "kind": "RigidBodyAPI",
+          "path": "/World/envs/env_0/Cabinet/link_1"
+        },
+        {
+          "kind": "CollisionAPI",
+          "path": "/World/envs/env_0/Cabinet/link_1/BottomHandleProxy/geometry/mesh"
+        },
+        {
+          "kind": "RigidBodyAPI",
+          "path": "/World/envs/env_0/Cabinet/link_2"
+        },
+        {
+          "kind": "ArticulationRootAPI",
+          "path": "/World/envs/env_0/Cabinet/root_joint"
+        },
+        {
+          "kind": "PhysicsFixedJoint",
+          "path": "/World/envs/env_0/Cabinet/root_joint"
+        }
+      ],
+      "subtree_assets": [
+        {
+          "asset_path": "../../simv2/USD/Cabinet_44853/cabinet.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Cabinet",
+          "prim_path": ""
+        },
+        {
+          "asset_path": "configuration/cabinet_physics.usd",
+          "kind": "payload",
+          "owner_prim": "/World/envs/env_0/Cabinet",
+          "prim_path": ""
+        },
+        {
+          "asset_path": "",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Cabinet/base/visuals",
+          "prim_path": "/visuals/base"
+        },
+        {
+          "asset_path": "",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Cabinet/link_3/visuals",
+          "prim_path": "/visuals/link_3"
+        },
+        {
+          "asset_path": "",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Cabinet/link_3/collisions",
+          "prim_path": "/colliders/link_3"
+        },
+        {
+          "asset_path": "",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Cabinet/link_0/visuals",
+          "prim_path": "/visuals/link_0"
+        },
+        {
+          "asset_path": "",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Cabinet/link_0/collisions",
+          "prim_path": "/colliders/link_0"
+        },
+        {
+          "asset_path": "",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Cabinet/link_1/visuals",
+          "prim_path": "/visuals/link_1"
+        },
+        {
+          "asset_path": "",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Cabinet/link_1/collisions",
+          "prim_path": "/colliders/link_1"
+        },
+        {
+          "asset_path": "",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Cabinet/link_2/visuals",
+          "prim_path": "/visuals/link_2"
+        },
+        {
+          "asset_path": "",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Cabinet/link_2/collisions",
+          "prim_path": "/colliders/link_2"
+        }
+      ],
+      "type": "Xform",
+      "visibility": "inherited",
+      "world_transform": {
+        "rotation_wxyz": [
+          0.6363961040044894,
+          0.0,
+          0.0,
+          0.4871180078468848
+        ],
+        "translation": [
+          0.27402082282943363,
+          0.9158301859135581,
+          0.32300001382827764
+        ]
+      },
+      "xform": {
+        "ordered_ops": [
+          {
+            "name": "xformOp:translate",
+            "type": "UsdGeom.XformOp.TypeTranslate",
+            "value": [
+              0.27402082282943363,
+              0.9158301859135581,
+              0.32300001382827764
+            ]
+          },
+          {
+            "name": "xformOp:orient",
+            "type": "UsdGeom.XformOp.TypeOrient",
+            "value": [
+              0.7071067811865476,
+              0.0,
+              0.0,
+              0.7071067811865475
+            ]
+          },
+          {
+            "name": "xformOp:scale",
+            "type": "UsdGeom.XformOp.TypeScale",
+            "value": [
+              0.6200000047683716,
+              0.6200000047683716,
+              0.6200000047683716
+            ]
+          }
+        ],
+        "orient_wxyz": [
+          0.7071067811865476,
+          0.0,
+          0.0,
+          0.7071067811865475
+        ],
+        "scale": [
+          0.6200000047683716,
+          0.6200000047683716,
+          0.6200000047683716
+        ],
+        "translate": [
+          0.27402082282943363,
+          0.9158301859135581,
+          0.32300001382827764
+        ]
+      }
+    },
+    {
+      "active": true,
+      "applied_schemas": [
+        "IsaacRobotAPI",
+        "SemanticsLabelsAPI:class"
+      ],
+      "loaded": true,
+      "name": "Knife",
+      "path": "/World/envs/env_0/Knife",
+      "physics": [
+        {
+          "kind": "RigidBodyAPI",
+          "path": "/World/envs/env_0/Knife/base"
+        },
+        {
+          "kind": "ArticulationRootAPI",
+          "path": "/World/envs/env_0/Knife/base"
+        },
+        {
+          "kind": "CollisionAPI",
+          "path": "/World/envs/env_0/Knife/base/HandleProxy/geometry/mesh"
+        },
+        {
+          "kind": "RigidBodyAPI",
+          "path": "/World/envs/env_0/Knife/link_0"
+        },
+        {
+          "kind": "PhysicsRevoluteJoint",
+          "path": "/World/envs/env_0/Knife/joints/joint_0"
+        }
+      ],
+      "subtree_assets": [
+        {
+          "asset_path": "../../simv2/USD/Knife_101054/knife.usd",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Knife",
+          "prim_path": ""
+        },
+        {
+          "asset_path": "configuration/knife_physics.usd",
+          "kind": "payload",
+          "owner_prim": "/World/envs/env_0/Knife",
+          "prim_path": ""
+        },
+        {
+          "asset_path": "",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Knife/base/visuals",
+          "prim_path": "/visuals/base"
+        },
+        {
+          "asset_path": "",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Knife/base/collisions",
+          "prim_path": "/colliders/base"
+        },
+        {
+          "asset_path": "",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Knife/link_0/visuals",
+          "prim_path": "/visuals/link_0"
+        },
+        {
+          "asset_path": "",
+          "kind": "reference",
+          "owner_prim": "/World/envs/env_0/Knife/link_0/collisions",
+          "prim_path": "/colliders/link_0"
+        }
+      ],
+      "type": "Xform",
+      "visibility": "inherited",
+      "world_transform": {
+        "rotation_wxyz": [
+          0.11338910558064624,
+          0.0,
+          0.0,
+          0.5291513531262576
+        ],
+        "translation": [
+          0.3499999940395355,
+          0.2800000011920929,
+          0.0949999988079071
+        ]
+      },
+      "xform": {
+        "ordered_ops": [
+          {
+            "name": "xformOp:translate",
+            "type": "UsdGeom.XformOp.TypeTranslate",
+            "value": [
+              0.3499999940395355,
+              0.2800000011920929,
+              0.0949999988079071
+            ]
+          },
+          {
+            "name": "xformOp:orient",
+            "type": "UsdGeom.XformOp.TypeOrient",
+            "value": [
+              0.707099974155426,
+              0.0,
+              0.0,
+              0.707099974155426
+            ]
+          },
+          {
+            "name": "xformOp:scale",
+            "type": "UsdGeom.XformOp.TypeScale",
+            "value": [
+              0.11999999731779099,
+              0.11999999731779099,
+              0.11999999731779099
+            ]
+          }
+        ],
+        "orient_wxyz": [
+          0.707099974155426,
+          0.0,
+          0.0,
+          0.707099974155426
+        ],
+        "scale": [
+          0.11999999731779099,
+          0.11999999731779099,
+          0.11999999731779099
+        ],
+        "translate": [
+          0.3499999940395355,
+          0.2800000011920929,
+          0.0949999988079071
+        ]
+      }
+    },
+    {
+      "active": true,
+      "applied_schemas": [],
+      "loaded": true,
+      "name": "GroundPlane",
+      "path": "/World/GroundPlane",
+      "physics": [
+        {
+          "kind": "CollisionAPI",
+          "path": "/World/GroundPlane/geometry/mesh"
+        }
+      ],
+      "subtree_assets": [],
+      "type": "Xform",
+      "visibility": "inherited",
+      "world_transform": {
+        "rotation_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          -0.02500000037252903
+        ]
+      },
+      "xform": {
+        "ordered_ops": [
+          {
+            "name": "xformOp:translate",
+            "type": "UsdGeom.XformOp.TypeTranslate",
+            "value": [
+              0.0,
+              0.0,
+              -0.02500000037252903
+            ]
+          },
+          {
+            "name": "xformOp:orient",
+            "type": "UsdGeom.XformOp.TypeOrient",
+            "value": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "name": "xformOp:scale",
+            "type": "UsdGeom.XformOp.TypeScale",
+            "value": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "translate": [
+          0.0,
+          0.0,
+          -0.02500000037252903
+        ]
+      }
+    },
+    {
+      "active": true,
+      "applied_schemas": [
+        "LightAPI",
+        "CollectionAPI:lightLink",
+        "CollectionAPI:shadowLink"
+      ],
+      "loaded": true,
+      "name": "light",
+      "path": "/World/light",
+      "physics": [],
+      "subtree_assets": [],
+      "type": "DomeLight",
+      "visibility": "inherited",
+      "world_transform": {
+        "rotation_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "xform": {
+        "ordered_ops": [
+          {
+            "name": "xformOp:translate",
+            "type": "UsdGeom.XformOp.TypeTranslate",
+            "value": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "name": "xformOp:orient",
+            "type": "UsdGeom.XformOp.TypeOrient",
+            "value": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "name": "xformOp:scale",
+            "type": "UsdGeom.XformOp.TypeScale",
+            "value": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "translate": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    }
+  ],
+  "restore_contract": {
+    "external_assets": "All subtree_assets asset_path entries must be available to the restoring project.",
+    "preferred_restore": "Load the saved USD snapshot directly when possible.",
+    "programmatic_restore": "Create each object at path and apply xform.translate, xform.orient_wxyz, and xform.scale in ordered_ops order.",
+    "robot_joint_positions": "Not part of this manifest contract."
+  },
+  "schema_version": "scene-layout-manifest-v1",
+  "stage_identifier": "/home1/banghai/Documents/IsaacLab/SceneLayoutModule/saved_scenes/scene_v0_20260611_191056.usd",
+  "task": "Isaac-Stack-Cube-Franka-JointPolicy-v0",
+  "up_axis": "Z"
+}

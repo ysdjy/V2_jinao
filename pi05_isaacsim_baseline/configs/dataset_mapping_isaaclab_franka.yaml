@@ -1,0 +1,56 @@
+# Field mapping from IsaacLab HDF5 demos -> normalized / LeRobot dataset.
+# inspect_hdf5.py prints the actual keys; adjust candidates here if they differ.
+#
+# IsaacLab (robomimic-style) layout written by ActionStateRecorderManagerCfg:
+#   data/demo_<i>/actions                  (T, A)
+#   data/demo_<i>/obs/<key>                (T, ...)
+#   data/demo_<i>/obs/<camera>             (T, H, W, 3)  if --enable_cameras
+#
+# The converter tries each candidate in order and uses the first that exists.
+
+episode_group: "data"                 # top-level group holding demo_0, demo_1, ...
+episode_prefix: "demo_"               # episode subgroup name prefix
+
+action_key_candidates:
+  - "actions"
+  - "action"
+
+# Proprio state: concatenated in this order if multiple are present.
+state_key_candidates:
+  - "obs/eef_pos"
+  - "obs/eef_quat"
+  - "obs/gripper_pos"
+  - "obs/joint_pos"
+  - "obs/joint_vel"
+
+# Explicit grouping used to build the canonical `state` vector (8D like libero):
+state_components:
+  ee_position:   ["obs/eef_pos", "obs/ee_pos", "obs/tcp_pos"]
+  ee_quat:       ["obs/eef_quat", "obs/ee_quat"]
+  gripper:       ["obs/gripper_pos", "obs/gripper_width", "obs/gripper"]
+  joint_pos:     ["obs/joint_pos", "obs/joint_positions"]
+
+image_key_candidates:
+  front_rgb:
+    - "obs/table_cam"
+    - "obs/front_cam"
+    - "obs/rgb"
+    - "obs/agentview_rgb"
+    - "obs/camera"
+  wrist_rgb:
+    - "obs/wrist_cam"
+    - "obs/wrist_rgb"
+    - "obs/hand_cam"
+    - "obs/eye_in_hand_rgb"
+
+fps: 30
+default_task_instruction: "Stack the cubes with the Franka robot."
+
+# LeRobot feature names (OpenPI expects proprio in `state`, actions in `actions`,
+# main image in `image`, wrist in `wrist_image`).
+lerobot_features:
+  image: "front_rgb"
+  wrist_image: "wrist_rgb"
+  state: "state"
+  actions: "actions"
+image_resize: [256, 256]

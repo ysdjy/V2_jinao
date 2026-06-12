@@ -1,0 +1,36 @@
+# Template for migrating this pipeline to YOUR custom IsaacSim task.
+# Copy to configs/<your_task>.yaml and fill in. Consumed by your own driver or
+# by extending run_policy_in_isaaclab.py.
+
+task_name: "Isaac-MyCustomTask-Franka-IK-Rel-v0"   # gym id registered by your task
+robot_name: "robot"                                 # scene articulation key
+cameras:
+  front_rgb: "table_cam"                            # scene sensor key -> logical name
+  wrist_rgb: "wrist_cam"
+observation_keys:                                   # what to populate in Observation
+  - joint_positions
+  - joint_velocities
+  - ee_position
+  - ee_quat
+  - gripper_width
+  - images
+  - objects                                         # fill from sim GT or FoundationPose
+action_type: "delta_ee_pose"                        # delta_ee_pose | joint_position | joint_delta
+control_frequency: 30                               # Hz
+task_instruction: "Describe the task in natural language for the VLA."
+success_condition:
+  type: "env_termination"                           # env_termination | geometric
+  # for geometric: object/goal tolerance
+  object: "cube_1"
+  goal_position: [0.5, 0.0, 0.10]
+  pos_tol: 0.03
+max_episode_steps: 300
+
+# Action adapter selection + safety
+env_kind: "ik_rel"                                  # ik_rel | ik_abs | joint
+safety_limits: "configs/safety_limits.yaml"
+
+# FoundationPose objects to track (optional, for real or privileged sim pose)
+foundationpose_objects:
+  - name: "cube_1"
+    mesh_path: "/path/to/cube_1.obj"

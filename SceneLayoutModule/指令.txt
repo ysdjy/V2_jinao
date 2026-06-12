@@ -1,0 +1,105 @@
+场景定义模块使用指令
+====================
+
+模块位置
+--------
+
+SceneLayoutModule/
+
+核心入口
+--------
+
+SceneLayoutModule/scene_layout_ui.py
+
+推荐 conda 环境
+---------------
+
+conda activate env_isaaclab
+
+启动全新场景编辑器
+------------------
+
+./isaaclab.sh -p SceneLayoutModule/scene_layout_ui.py --num_envs 1
+
+加载最近一次保存的场景
+----------------------
+
+./isaaclab.sh -p SceneLayoutModule/scene_layout_ui.py --num_envs 1 --load_latest_saved
+
+加载指定保存场景
+----------------
+
+./isaaclab.sh -p SceneLayoutModule/scene_layout_ui.py --num_envs 1 --load_usd SceneLayoutModule/saved_scenes/scene_v0_20260611_191056.usd
+
+保存方式
+--------
+
+在 UI 中点击 Save Both。
+
+Save Both 会同时生成：
+
+1. SceneLayoutModule/saved_scenes/scene_v0_<时间戳>.usd
+2. SceneLayoutModule/saved_scenes/scene_v0_<时间戳>.json
+
+USD 是完整场景快照，适合最忠实地重新加载。
+JSON 是给其他 AI 程序化还原场景用的 manifest。
+
+给其他 AI 使用时需要提供
+-----------------------
+
+至少提供：
+
+1. SceneLayoutModule/saved_scenes/scene_v0_<时间戳>.usd
+2. SceneLayoutModule/saved_scenes/scene_v0_<时间戳>.json
+3. SceneLayoutModule/HANDOFF.md
+
+如果对方在另一台机器上运行，还需要提供 USD/JSON 中引用到的资产目录，例如：
+
+1. Connection/assets/Isaac/IsaacLab/Robots/FrankaEmika/
+2. simv2/USD/Cabinet_44853/
+3. simv2/USD/Knife_101054/
+4. SapienAssetPipeline/usd_assets/CoffeeMachine_103046/
+
+模块边界
+--------
+
+这个模块只做场景定义和场景保存。
+
+它不负责：
+
+1. 控制算法
+2. 强化学习训练
+3. reward
+4. observation
+5. action
+6. termination
+7. 机器人关节角度保存
+
+其他 AI 应该把这个模块生成的 USD/JSON 当作数据读取，在自己的任务中还原场景。
+不要让其他任务 import 这个模块作为运行依赖。
+
+编辑场景注意事项
+----------------
+
+1. 启动后工具会自动暂停 timeline，避免 physics 覆盖手动编辑结果。
+2. 移动柜子、刀具、咖啡机这类资产时，尽量选顶层 prim。
+3. 不要只移动内部 mesh、collision 或 link。
+4. 新增物品后点击 Save Both，才会写入新的 USD/JSON。
+5. 如果重新运行时不带 --load_latest_saved 或 --load_usd，会重新加载原始基础场景。
+
+旧入口兼容
+----------
+
+下面这个旧命令仍然可用，但它只是转发到新模块：
+
+./isaaclab.sh -p scripts/environments/state_machine/scene_v0_layout_ui.py --num_envs 1
+
+以后建议使用新模块入口：
+
+./isaaclab.sh -p SceneLayoutModule/scene_layout_ui.py --num_envs 1
+
+当前已确认保存的场景
+--------------------
+
+SceneLayoutModule/saved_scenes/scene_v0_20260611_191056.usd
+SceneLayoutModule/saved_scenes/scene_v0_20260611_191056_report.md

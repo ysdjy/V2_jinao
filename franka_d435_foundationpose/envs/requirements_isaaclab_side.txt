@@ -1,0 +1,19 @@
+# IsaacLab-side dependencies ONLY (install into env_isaaclab if missing).
+#
+# These are light and safe. They MUST NOT pull in torch, pytorch3d, nvdiffrast,
+# or any FoundationPose build dependency. IsaacLab already provides torch; we do
+# not touch it here.
+#
+# Install (only the ones not already present in env_isaaclab):
+#     conda run -n env_isaaclab pip install -r requirements_isaaclab_side.txt
+
+numpy
+opencv-python
+pyyaml
+scipy
+
+# OPTIONAL — only needed for the ZMQ inference-service mode (mode 2). The default
+# file-exchange mode (mode 1) does NOT require it. Install only if you want to
+# use PoseClient/PoseServer:
+#     conda run -n env_isaaclab pip install pyzmq
+pyzmq

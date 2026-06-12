@@ -1,0 +1,47 @@
+# Target object registry. The FoundationPose wrapper never hard-codes object
+# names; everything is looked up here by `object_name`.
+#
+# mesh_path / default_mask_path are relative to the project root
+# (franka_d435_foundationpose/), or may be absolute paths.
+#
+# IMPORTANT: meshes must be in METERS for FoundationPose. diameter is the object
+# bounding-sphere diameter in meters (optional). symmetry is optional metadata.
+
+objects:
+  target_object:
+    mesh_path: assets/meshes/target_object.obj
+    default_mask_path: assets/masks/target_object_mask.png
+    diameter: null
+    symmetry: null
+
+  cube:
+    mesh_path: assets/meshes/cube.obj
+    default_mask_path: assets/masks/cube_mask.png
+    diameter: 0.05
+    symmetry: null
+
+  # Target object in the saved scene (prim /coffeemachine). Supply a real CAD
+  # mesh (METERS) at the path below for real FoundationPose; the mock ignores it.
+  coffee_machine:
+    mesh_path: assets/meshes/coffee_machine.obj
+    default_mask_path: null
+    diameter: null
+    symmetry: null
+
+  # Cubes in the instrumented scene (Cube_1/2/3). All share the cube mesh; cube
+  # is symmetric so translation error is the reliable validation metric.
+  cube_0:
+    mesh_path: assets/meshes/cube.obj
+    default_mask_path: null
+    diameter: 0.05
+    symmetry: cube
+  cube_1:
+    mesh_path: assets/meshes/cube.obj
+    default_mask_path: null
+    diameter: 0.05
+    symmetry: cube
+  cube_2:
+    mesh_path: assets/meshes/cube.obj
+    default_mask_path: null
+    diameter: 0.05
+    symmetry: cube

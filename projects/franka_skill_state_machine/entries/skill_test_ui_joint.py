@@ -59,6 +59,20 @@ parser.add_argument(
     default=0.0,
     help="TCP z offset from cube center for grasp debugging, in [-0.010, 0.015] m.",
 )
+parser.add_argument(
+    "--speed",
+    type=float,
+    default=2.0,
+    help="Initial skill motion speed multiplier (global step scale). 1.0 = original tuned speed. "
+    "Adjustable live in the UI. Clamped to [0.25, 8.0].",
+)
+parser.add_argument(
+    "--free_microwave_door",
+    action="store_true",
+    default=True,
+    help="Free the microwave door joint (stiffness 0) so the open/close-door skill can swing it. "
+    "On by default; the vertical hinge means a freed closed door stays put.",
+)
 parser.add_argument("--num_envs", type=int, default=1, help="Number of environments to simulate. Skill UI supports 1.")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
@@ -75,7 +89,7 @@ import torch
 import isaaclab_tasks  # noqa: F401
 from isaaclab_tasks.utils.parse_cfg import parse_env_cfg
 
-from runtime.base_skill import pose_tensor
+from runtime.base_skill import pose_tensor, set_speed_scale, get_speed_scale
 from runtime.debug_visualizer import DebugVisualizer, OBJECT_AXIS_LENGTH, OBJECT_AXIS_WIDTH
 from runtime.drawer_obs_adapter import DrawerObsAdapter, SelectedDrawerObsAdapter
 from runtime.drawer_target_config import functional_drawers
@@ -98,6 +112,13 @@ SKILL_LABELS = [
     ("Place", SkillType.PLACE),
     ("Open Drawer", SkillType.OPEN_DRAWER),
     ("Close Drawer", SkillType.CLOSE_DRAWER),
+    ("Open Door", SkillType.OPEN_DOOR),
+    ("Close Door", SkillType.CLOSE_DOOR),
+]
+
+# Revolute-door targets for Open Door / Close Door (ASCII labels; omni.ui can't render CJK).
+DOOR_TARGETS_UI = [
+    ("Microwave (microwave)", "microwave"),
 ]
 
 # ASCII labels only — omni.ui's ComboBox font cannot render CJK (shows "???").
@@ -125,6 +146,19 @@ PLACE_POINT_AXIS_LENGTH = 0.035
 PLACE_POINT_AXIS_WIDTH = 0.002
 PLACE_MOVE_STEPS = [("1 cm", 0.010), ("5 cm", 0.050), ("10 cm", 0.100)]
 
+# Global skill motion speed presets (multiplier on every per-step pose increment, all skills).
+SPEED_PRESETS = [
+    ("0.5x (slow)", 0.5),
+    ("1x (default tune)", 1.0),
+    ("2x", 2.0),
+    ("3x", 3.0),
+    ("5x (fast)", 5.0),
+]
+
+
+def _closest_speed_index(value: float) -> int:
+    return min(range(len(SPEED_PRESETS)), key=lambda i: abs(SPEED_PRESETS[i][1] - value))
+
 
 def enable_collision_debug_visualization():
     settings = carb.settings.get_settings()
@@ -143,6 +177,8 @@ class SkillTestWindow:
         self.target_keys = [key for key, _ in registry.display_targets()]
         self.drawer_target_keys = [key for _, key in DRAWER_TARGETS]
         self.selected_drawer = self.drawer_target_keys[0]
+        self.door_target_keys = [key for _, key in DOOR_TARGETS_UI]
+        self.selected_door = self.door_target_keys[0]
         self.place_point_keys = list(DEFAULT_PLACE_POINTS.keys())
         self.place_points = {key: list(value) for key, value in DEFAULT_PLACE_POINTS.items()}
         self.selected_place_point = "point_a"
@@ -160,11 +196,19 @@ class SkillTestWindow:
                 ui.Label("Drawer target")
                 self.drawer_model = ui.ComboBox(0, *[label for label, _ in DRAWER_TARGETS]).model
                 self.drawer_model.add_item_changed_fn(self._on_drawer_changed)
+                ui.Label("Door target (Open/Close Door)")
+                self.door_model = ui.ComboBox(0, *[label for label, _ in DOOR_TARGETS_UI]).model
+                self.door_model.add_item_changed_fn(self._on_door_changed)
                 with ui.HStack(spacing=6):
                     ui.Button("Start", clicked_fn=self._start)
                     ui.Button("Stop", clicked_fn=self.controller.request_stop)
                     ui.Button("Resume", clicked_fn=self.controller.request_resume)
                     ui.Button("Reset", clicked_fn=self.controller.request_reset)
+                ui.Label("Skill speed (all skills)")
+                self.speed_model = ui.ComboBox(
+                    _closest_speed_index(get_speed_scale()), *[label for label, _ in SPEED_PRESETS]
+                ).model
+                self.speed_model.add_item_changed_fn(self._on_speed_changed)
                 ui.Label("Place point")
                 self.place_point_model = ui.ComboBox(0, *self.place_point_keys).model
                 self.place_point_model.add_item_changed_fn(self._on_place_point_changed)
@@ -201,6 +245,7 @@ class SkillTestWindow:
                     "place_point_y",
                     "place_point_z",
                     "place_move_step",
+                    "speed_scale",
                     "held_object",
                     "active_skill",
                     "backend",
@@ -244,6 +289,15 @@ class SkillTestWindow:
     def _on_drawer_changed(self, model, item):
         index = model.get_item_value_model().as_int
         self.selected_drawer = self.drawer_target_keys[index]
+
+    def _on_door_changed(self, model, item):
+        index = model.get_item_value_model().as_int
+        self.selected_door = self.door_target_keys[index]
+
+    def _on_speed_changed(self, model, item):
+        index = model.get_item_value_model().as_int
+        applied = set_speed_scale(SPEED_PRESETS[index][1])
+        print(f"[UI] skill speed scale set to {applied:.2f}x", flush=True)
 
     def _on_place_point_changed(self, model, item):
         index = model.get_item_value_model().as_int
@@ -306,6 +360,9 @@ class SkillTestWindow:
                 )
             self.controller.queue_request(_make_request(self.controller.selected_skill, target))
             return
+        if self.controller.selected_skill in (SkillType.OPEN_DOOR, SkillType.CLOSE_DOOR):
+            self.controller.queue_request(_make_request(self.controller.selected_skill, self.selected_door))
+            return
         target = self.controller.selected_target
         self.controller.queue_request(_make_request(self.controller.selected_skill, target))
 
@@ -338,6 +395,7 @@ class SkillTestWindow:
             "place_point_y": f"{point[1]:.3f}",
             "place_point_z": f"{point[2]:.3f}",
             "place_move_step": f"{self.place_move_step:.3f}",
+            "speed_scale": f"{get_speed_scale():.2f}x",
             "held_object": self._held_object_name(),
             "active_skill": None if active is None else active.__class__.__name__,
             "backend": None if active is None else getattr(active, "backend", None),
@@ -415,6 +473,14 @@ def _make_request(
             destination_object=target or "bottom_drawer",
             parameters={"drawer_link": "link_1"},
         )
+    if skill_type in (SkillType.OPEN_DOOR, SkillType.CLOSE_DOOR):
+        return SkillRequest(
+            request_id=f"{skill_type.value}_{target}_{time.time_ns()}",
+            skill_type=skill_type,
+            source_object=None,
+            destination_type="door",
+            destination_object=target or "microwave",
+        )
     return SkillRequest(
         request_id=f"{skill_type.value}_{target}_{time.time_ns()}",
         skill_type=skill_type,
@@ -457,6 +523,8 @@ def main():
         raise ValueError("skill_test_ui_joint currently supports --num_envs 1 so one UI maps to one scene.")
 
     torch.manual_seed(args_cli.seed)
+    applied_speed = set_speed_scale(args_cli.speed)
+    print(f"[skill_test_ui_joint] initial skill speed scale = {applied_speed:.2f}x", flush=True)
     env_cfg = parse_env_cfg(
         TASK_ID,
         device=args_cli.device,
@@ -478,6 +546,13 @@ def main():
         if "blade_lock" in env_cfg.scene.knife.actuators:
             env_cfg.scene.knife.actuators["blade_lock"].stiffness = 100.0
             env_cfg.scene.knife.actuators["blade_lock"].damping = 10.0
+    # Free the microwave door joint (stiffness 0) so the open/close-door IK skill can physically swing
+    # it (mirrors the cabinet drawer for ik_pull). The hinge axis is vertical, so a freed closed door
+    # stays put (no gravity torque). Default off keeps it a solid closed prop for grasp/place demos.
+    if args_cli.free_microwave_door and hasattr(env_cfg.scene, "microwave") and hasattr(env_cfg.scene.microwave, "actuators"):
+        for _act in env_cfg.scene.microwave.actuators.values():
+            _act.stiffness = 0.0
+            _act.damping = 2.0
     # interactive UI: never auto-reset (disable episode time-out + cube terminations that reset the scene)
     env_cfg.episode_length_s = 1.0e9
     if getattr(env_cfg, "terminations", None) is not None:

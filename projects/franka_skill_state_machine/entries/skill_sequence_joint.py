@@ -52,6 +52,7 @@ parser.add_argument(
 parser.add_argument("--drawer_policy_path", type=str, default=None, help="TorchScript policy.pt for the learned drawer backend.")
 parser.add_argument("--drawer_joint_name", type=str, default="joint_0", help="Cabinet drawer joint to read for success.")
 parser.add_argument("--drawer_success_threshold", type=float, default=0.20, help="Drawer-open success threshold (m).")
+parser.add_argument("--speed", type=float, default=1.0, help="Global skill motion speed multiplier (default 1.0 = original tune). Clamped to [0.25, 8.0].")
 parser.add_argument("--max_steps", type=int, default=3000, help="Global hard cap on sim steps.")
 parser.add_argument("--log_every", type=int, default=30, help="Low-frequency debug log interval (sim steps).")
 parser.add_argument("--disable_fabric", action="store_true", default=False, help="Disable fabric and use USD I/O.")
@@ -75,6 +76,7 @@ import torch
 import isaaclab_tasks  # noqa: F401
 from isaaclab_tasks.utils.parse_cfg import parse_env_cfg
 
+from runtime.base_skill import set_speed_scale
 from runtime.drawer_obs_adapter import DrawerObsAdapter
 from runtime.drawer_target_config import DRAWER_TARGETS
 from runtime.ik_joint_adapter import IKJointAdapter
@@ -133,6 +135,14 @@ def _make_request(skill_type: SkillType, target: str) -> SkillRequest:
             # joint is resolved from the central target->joint config inside the drawer skill
             parameters={},
         )
+    if skill_type in (SkillType.OPEN_DOOR, SkillType.CLOSE_DOOR):
+        return SkillRequest(
+            request_id=rid,
+            skill_type=skill_type,
+            source_object=None,
+            destination_type="door",
+            destination_object=target or "microwave",
+        )
     return SkillRequest(request_id=rid, skill_type=skill_type, source_object=target)
 
 
@@ -166,6 +176,7 @@ def main():
         raise ValueError("skill_sequence_joint supports --num_envs 1.")
 
     torch.manual_seed(args_cli.seed)
+    print(f"[skill_sequence_joint] skill speed scale = {set_speed_scale(args_cli.speed):.2f}x", flush=True)
     env_cfg = parse_env_cfg(
         TASK_ID, device=args_cli.device, num_envs=args_cli.num_envs, use_fabric=not args_cli.disable_fabric
     )
@@ -186,6 +197,11 @@ def main():
         if "blade_lock" in env_cfg.scene.knife.actuators:
             env_cfg.scene.knife.actuators["blade_lock"].stiffness = 100.0
             env_cfg.scene.knife.actuators["blade_lock"].damping = 10.0
+    # free the microwave door joint so the open/close-door IK skill can physically swing it
+    if hasattr(env_cfg.scene, "microwave") and hasattr(env_cfg.scene.microwave, "actuators"):
+        for _act in env_cfg.scene.microwave.actuators.values():
+            _act.stiffness = 0.0
+            _act.damping = 2.0
     # never auto-reset mid-sequence (disable episode time-out + cube terminations)
     env_cfg.episode_length_s = 1.0e9
     if getattr(env_cfg, "terminations", None) is not None:

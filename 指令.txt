@@ -1,3 +1,9 @@
 6.9：franka抓取cube，场景有刀，柜子
 conda activate env_isaaclab
   ./isaaclab.sh -p scripts/environments/state_machine/stack_cube_sm.py --num_envs 1
+  
+  conda activate env_isaaclab
+  ./isaaclab.sh -p scripts/environments/state_machine/skill_test_ui.py --num_envs 1 --show_affordance_debug --seed 1
+
+  
+git push https://github.com/ysdjy/V2_jinao.git HEAD:main

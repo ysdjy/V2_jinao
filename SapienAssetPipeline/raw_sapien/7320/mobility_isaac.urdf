@@ -1,0 +1,248 @@
+<?xml version='1.0' encoding='utf-8'?>
+<robot name="partnet_c5d13a109a61060c178e7d331e641179">
+	<link name="base" />
+	<link name="link_0">
+		<visual name="door_frame_5">
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_1.obj" />
+			</geometry>
+		</visual>
+		<visual name="glass_6">
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_6.obj" />
+			</geometry>
+		</visual>
+		<visual name="glass_6">
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_9.obj" />
+			</geometry>
+		</visual>
+		<visual name="glass_6">
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_17.obj" />
+			</geometry>
+		</visual>
+		<visual name="glass_6">
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_10.obj" />
+			</geometry>
+		</visual>
+		<visual name="glass_6">
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_11.obj" />
+			</geometry>
+		</visual>
+		<visual name="glass_6">
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_12.obj" />
+			</geometry>
+		</visual>
+		<visual name="glass_6">
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_13.obj" />
+			</geometry>
+		</visual>
+		<visual name="glass_6">
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_14.obj" />
+			</geometry>
+		</visual>
+		<visual name="glass_6">
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_15.obj" />
+			</geometry>
+		</visual>
+		<visual name="glass_6">
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_16.obj" />
+			</geometry>
+		</visual>
+		<visual name="glass_6">
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_3.obj" />
+			</geometry>
+		</visual>
+		<visual name="handle_7">
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_19.obj" />
+			</geometry>
+		</visual>
+		<visual name="handle_7">
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_21.obj" />
+			</geometry>
+		</visual>
+		<visual name="handle_7">
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_20.obj" />
+			</geometry>
+		</visual>
+		<collision>
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_1.obj" />
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_6.obj" />
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_9.obj" />
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_17.obj" />
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_10.obj" />
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_11.obj" />
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_12.obj" />
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_13.obj" />
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_14.obj" />
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_15.obj" />
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_16.obj" />
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_3.obj" />
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_19.obj" />
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_21.obj" />
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0.7663123617888119 -0.4711569999999998 -0.39380938953471023" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_20.obj" />
+			</geometry>
+		</collision>
+	</link>
+	<joint name="joint_0" type="revolute">
+		<origin xyz="-0.7663123617888119 0.4711569999999998 0.39380938953471023" />
+		<axis xyz="0 -1 0" />
+		<child link="link_0" />
+		<parent link="link_1" />
+		<limit lower="-0.0" upper="1.5707963267948966" />
+	</joint>
+	<link name="link_1">
+		<visual name="frame_2">
+			<origin xyz="0 0 0" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_2.obj" />
+			</geometry>
+		</visual>
+		<visual name="frame_2">
+			<origin xyz="0 0 0" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/new_11.obj" />
+			</geometry>
+		</visual>
+		<visual name="frame_2">
+			<origin xyz="0 0 0" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_7.obj" />
+			</geometry>
+		</visual>
+		<visual name="frame_2">
+			<origin xyz="0 0 0" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_4.obj" />
+			</geometry>
+		</visual>
+		<collision>
+			<origin xyz="0 0 0" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_2.obj" />
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0 0 0" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/new_11.obj" />
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0 0 0" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_7.obj" />
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0 0 0" />
+			<geometry>
+				<mesh filename="textured_objs_isaac/original_4.obj" />
+			</geometry>
+		</collision>
+		</link>
+	<joint name="joint_1" type="fixed">
+		<origin rpy="1.570796326794897 0 -1.570796326794897" xyz="0 0 0" />
+		<child link="link_1" />
+		<parent link="base" />
+	</joint>
+</robot>

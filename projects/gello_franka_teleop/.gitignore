@@ -1,0 +1,13 @@
+# 独立虚拟环境，不入库
+.venv-gello/
+
+# gello 官方仓库自行 clone，不入库
+third_party/gello_software/
+
+# 运行产生的日志/CSV/校准结果
+logs/*.csv
+logs/*.txt
+
+# Python 缓存
+__pycache__/
+*.pyc

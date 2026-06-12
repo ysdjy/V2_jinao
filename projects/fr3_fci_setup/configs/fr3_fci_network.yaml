@@ -1,0 +1,21 @@
+# FR3 FCI 网络配置（仅本项目使用，脚本只读不自动改网）
+#
+# 安全说明：
+#   - 脚本运行时会【动态】重新检测默认路由网口并据此拦截危险操作，
+#     不会只依赖本文件里的 forbidden_interfaces。
+#   - confirmed_fci_interface 必须由你手动确认后填写（先跑 00 脚本）。
+
+robot_ip: 172.16.0.2        # FR3 FCI 机器人 IP（机器人侧，固定）
+local_fci_ip: 172.16.0.3    # 本机 FCI 网口要设置的静态 IP
+prefix: 24                  # 子网前缀长度 -> 172.16.0.3/24
+
+# 禁止修改的网口（上网 / 默认路由网口）。
+# 当前检测到默认路由在 enp9s0f2np2 上（IP 10.96.80.171/21），所以它在这里。
+forbidden_interfaces:
+  - enp9s0f2np2   # 默认路由 / 上网网口，绝对不要碰
+
+# FR3 FCI 网口名字。先跑 00_detect_network_interfaces.sh，确认后把名字填到这里。
+# 例如：eno1（当前强候选：有线、carrier UP、无 IP、非默认路由）。
+confirmed_fci_interface: eno1   # 用户已确认 2026-06-11：eno1 连 FR3，ping 172.16.0.2 通
+
+notes: "Do not modify internet/default route interface."

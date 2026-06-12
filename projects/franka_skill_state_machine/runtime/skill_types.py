@@ -10,6 +10,8 @@ class SkillType(Enum):
     PLACE = "place"
     OPEN_DRAWER = "open_drawer"
     CLOSE_DRAWER = "close_drawer"
+    OPEN_DOOR = "open_door"
+    CLOSE_DOOR = "close_door"
 
 
 class ExecutionStatus(Enum):
@@ -40,6 +42,8 @@ class FailureReason(Enum):
     HANDLE_GRASP_FAILED = "HANDLE_GRASP_FAILED"
     DRAWER_OPEN_TIMEOUT = "DRAWER_OPEN_TIMEOUT"
     DRAWER_CLOSE_TIMEOUT = "DRAWER_CLOSE_TIMEOUT"
+    DOOR_OPEN_TIMEOUT = "DOOR_OPEN_TIMEOUT"
+    DOOR_CLOSE_TIMEOUT = "DOOR_CLOSE_TIMEOUT"
     DRAWER_JOINT_MISSING = "DRAWER_JOINT_MISSING"
     RELEASE_HELD_OBJECT_FIRST = "RELEASE_HELD_OBJECT_FIRST"
 

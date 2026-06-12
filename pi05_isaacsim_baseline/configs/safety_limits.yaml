@@ -1,0 +1,19 @@
+# Safety limits applied to every policy action before it reaches IsaacSim.
+# Units: meters / radians. See adapters/action_adapters/safety_filter.py
+delta_position_max_norm: 0.03      # m per step (L2)
+delta_position_clip: 0.03          # m per axis (Linf)
+delta_rotation_max_norm: 0.15      # rad per step (L2)
+gripper_clip: [-1.0, 1.0]
+
+# Joint action clip (rad). Franka Panda 7-DoF nominal limits (slightly conservative).
+joint_min: [-2.8, -1.7, -2.8, -3.0, -2.8, -0.0, -2.8]
+joint_max: [ 2.8,  1.7,  2.8, -0.1,  2.8,  3.7,  2.8]
+joint_delta_clip: 0.10             # rad per step for joint_delta actions
+
+# End-effector workspace box in robot/world frame (m). Out-of-box -> clipped.
+workspace_min: [0.10, -0.55, 0.0]
+workspace_max: [0.95,  0.55, 0.9]
+
+# Fault handling
+max_consecutive_policy_errors: 5   # -> request episode reset
+nan_replacement: 0.0

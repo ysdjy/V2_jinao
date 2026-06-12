@@ -1,0 +1,46 @@
+# Conda environment for the FoundationPose side ONLY.
+#
+# This is a STARTING POINT, not a guaranteed-working lock file. FoundationPose
+# depends on CUDA-compiled extensions (nvdiffrast, custom ops) whose exact
+# versions must match your CUDA toolkit and GPU driver. ALWAYS prefer the
+# official instructions:
+#     https://github.com/NVlabs/FoundationPose
+#
+# If the conda build is painful, use the official Docker image instead
+# (set use_docker: true in configs/foundationpose.yaml). Docker is recommended.
+#
+# Create with:
+#     conda env create -f environment_foundationpose.yml
+#     conda activate foundationpose
+# Then build FoundationPose's CUDA extensions per its README inside this env.
+
+name: foundationpose
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - pip
+  - numpy
+  - scipy
+  - pyyaml
+  - pyzmq
+  # PyTorch + CUDA: pick the build matching YOUR driver/toolkit. Example only.
+  - pytorch>=2.0
+  - torchvision
+  - pytorch-cuda=11.8
+  - pip:
+      - opencv-python
+      - trimesh
+      - pyrender
+      - imageio
+      - open3d
+      - scikit-image
+      # The following are built/installed per FoundationPose's own README and
+      # often require building from source against your CUDA toolkit:
+      #   - nvdiffrast        (NVlabs/nvdiffrast)
+      #   - pytorch3d         (facebookresearch/pytorch3d)
+      #   - kaolin / warp     (as required by the FoundationPose version)
+      # Leave them commented; follow the official FoundationPose install steps.

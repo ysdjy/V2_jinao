@@ -1,0 +1,43 @@
+# Reference/记录 for the pi0.5 finetune config that scripts/register_openpi_config.py
+# injects into OpenPI's training registry. This YAML is documentation only — the
+# authoritative definition is the python TrainConfig appended to
+# third_party/openpi/src/openpi/training/config.py (see register_openpi_config.py).
+#
+# To change training behavior, edit register_openpi_config.py's _entry() (it builds
+# the TrainConfig), then re-run train_pi05.sh.
+
+name: pi05_isaaclab_franka          # openpi config name (also --name in train_pi05.sh)
+base_model: pi05_base               # gs://openpi-assets/checkpoints/pi05_base/params
+model:
+  type: Pi0Config
+  pi05: true
+  action_horizon: 10
+  discrete_state_input: false
+data:
+  type: LeRobotLiberoDataConfig     # matches our converter's feature layout
+  repo_id: franka_stack_cube_pi05   # data/lerobot/<repo_id>; resolved via HF_LEROBOT_HOME
+  prompt_from_task: true
+  extra_delta_transform: false
+
+# Smoke-test defaults (overridden by train_pi05.sh flags)
+train:
+  batch_size: 1
+  num_train_steps: 10
+  save_interval: 10
+  log_interval: 1
+  precision: bf16                   # OpenPI default
+  ema_decay: 0.999
+
+# Memory / scaling knobs (apply for the real run)
+scaling:
+  fsdp_devices: 2                   # shard across both RTX 8000
+  freeze_vision_encoder: true       # via freeze_filter (LoRA pattern) for low-mem
+  gradient_checkpointing: true      # OpenPI enables internally for pi0.5
+  use_relative_actions: true        # ik_rel datasets
+
+units:
+  position: m
+  rotation: rad
+  quaternion: xyzw
+  gripper: "[-1,1]"
+task_instruction_default: "Stack the cubes with the Franka robot."
