@@ -27,7 +27,7 @@ from runtime.skill_types import ExecutionStatus, FailureReason
 @dataclass
 class CloseDrawerIKConfig:
     pre_grasp_clearance: float = 0.0  # no OUTWARD back-off: would drag a gripped/free drawer further open
-    push_lead: float = 0.08  # how far toward the cabinet to aim while pushing
+    push_lead: float = 0.12  # how far toward the cabinet to aim while pushing (seat it fully closed)
     max_pos_step: float = 0.020
     max_ori_step: float = math.radians(6.0)
     reach_pos_threshold: float = 0.02
@@ -35,7 +35,7 @@ class CloseDrawerIKConfig:
     close_duration: float = 1.0
     reach_timeout: float = 10.0
     push_timeout: float = 8.0
-    close_success_threshold: float = 0.03  # drawer considered closed when joint <= this
+    close_success_threshold: float = 0.01  # drawer considered closed when joint <= this (less gap)
 
 
 @dataclass
@@ -79,16 +79,19 @@ class CloseDrawerIKSkill:
     def _handle_pos(self) -> torch.Tensor:
         return self.obs_adapter.selected_handle_pos_w()[self.adapter.env_id]
 
-    def _cabinet_root(self) -> torch.Tensor:
-        return self.env.unwrapped.scene["cabinet"].data.root_pos_w[self.adapter.env_id]
+    def _cabinet_quat(self) -> torch.Tensor:
+        return self.env.unwrapped.scene["cabinet"].data.root_quat_w[self.adapter.env_id]
 
     def _drawer_pos(self) -> float:
         return self.obs_adapter.selected_drawer_joint_pos()
 
     def _grasp_pose(self, lead: float) -> PoseState:
-        """Live target: handle + lead*open_dir. lead>0 = outward (pre-grasp), lead<0 = toward cabinet (push)."""
+        """Live target: handle + lead*open_dir. lead>0 = outward (pre-grasp), lead<0 = toward cabinet (push).
+
+        open_dir comes from the cabinet orientation (same for every drawer).
+        """
         handle = self._handle_pos()
-        open_dir = open_direction_world(handle, self._cabinet_root())
+        open_dir = open_direction_world(self._cabinet_quat())
         quat = grasp_quat_from_open_dir(open_dir, handle.device)
         return PoseState(handle + open_dir * lead, quat)
 

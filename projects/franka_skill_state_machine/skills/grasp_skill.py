@@ -63,11 +63,8 @@ class GraspJointSkill:
         gripper = pose_command.gripper_command
         # terminal / hold states: hold current joints, keep gripper command
         if self.status in (ExecutionStatus.SUCCEEDED, ExecutionStatus.FAILED, ExecutionStatus.STOPPED):
-            q_hold = self.adapter.solve(desired) if desired is not None else None
             q_des = self.last_q_des
             if q_des is None:
-                from .scene_state_provider import PoseState  # local import to avoid cycle at top
-
                 q_des = state.robot.joint_pos[self.adapter._joint_ids].clone()
             return SkillCommand(
                 tcp_pose_w=desired,

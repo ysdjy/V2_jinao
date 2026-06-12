@@ -38,7 +38,7 @@ KNIFE_PROBE_LIFT_HEIGHT = 0.030
 KNIFE_FULL_LIFT_HEIGHT = 0.120
 KNIFE_GRIP_YAW_OFFSET = math.pi
 
-WORKSPACE_X_MIN = 0.25
+WORKSPACE_X_MIN = 0.13  # cover the placement region (cubes randomized down to x~0.15)
 WORKSPACE_X_MAX = 0.85
 WORKSPACE_Y_ABS_MAX = 0.65
 WORKSPACE_Z_MIN = 0.010
@@ -152,12 +152,27 @@ class TargetRegistry:
             max_gripper_width=CUBE_MAX_GRASP_WIDTH,
         )
 
+    def _snapped_gripper_yaw(self, state: SceneState) -> torch.Tensor:
+        """Yaw of the current gripper snapped to the nearest 90 deg.
+
+        A cube is symmetric, so the gripper can grab either opposite side-pair (yaw multiples of
+        90 deg). Snapping to the nearest 90 deg of the CURRENT gripper yaw makes the arm rotate the
+        least, and decouples the grasp from the cube's own orientation (robust to the cube flipping).
+        """
+        x_w = math_utils.quat_apply(state.robot.tcp_pose.quat_w.unsqueeze(0), self._vec3(1.0, 0.0, 0.0).unsqueeze(0))[0]
+        yaw = float(torch.atan2(x_w[1], x_w[0]).detach().cpu())
+        half_pi = math.pi / 2.0
+        snapped = round(yaw / half_pi) * half_pi
+        return torch.tensor(snapped, dtype=torch.float32, device=self.device)
+
     def _cube_grasp_plan(self, cfg: TargetConfig, state: SceneState) -> GraspPlan:
         obj = state.objects[cfg.scene_key]
         cube_center_w = obj.pose.pos_w
         cube_quat_w = math_utils.normalize(obj.pose.quat_w.unsqueeze(0))[0]
-        cube_yaw = self._yaw_from_local_x(cube_quat_w)
-        grasp_quat = self._top_down_quat(cube_yaw)
+        # grasp orientation is NOT bound to the cube frame: always top-down, yaw chosen to minimize
+        # arm rotation (nearest 90 deg of the current gripper yaw).
+        grasp_yaw = self._snapped_gripper_yaw(state)
+        grasp_quat = self._top_down_quat(grasp_yaw)
         grasp_pos = cube_center_w + self._vec3(0.0, 0.0, cfg.local_grasp_pos[2])
         pre_grasp_pos = grasp_pos + self._vec3(0.0, 0.0, cfg.pre_grasp_clearance)
         probe_lift_pos = grasp_pos + self._vec3(0.0, 0.0, cfg.probe_lift_height)
@@ -175,8 +190,8 @@ class TargetRegistry:
             probe_lift_pos,
             full_lift_pos,
             object_quat_w=cube_quat_w,
-            object_yaw=cube_yaw,
-            grasp_yaw=cube_yaw,
+            object_yaw=None,
+            grasp_yaw=grasp_yaw,
         )
 
     def _knife_grasp_plan(self, cfg: TargetConfig, state: SceneState) -> GraspPlan:

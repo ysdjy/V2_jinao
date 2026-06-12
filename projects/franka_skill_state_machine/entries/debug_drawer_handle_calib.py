@@ -49,7 +49,7 @@ from runtime.simple_scene_layout import SimpleSceneLayoutManager
 
 TASK_ID = "Isaac-Stack-Cube-Franka-JointPolicy-v0"
 # drawers we calibrate (bottom is locked / excluded)
-CALIB = [("top_drawer", "link_0"), ("middle_drawer", "link_2")]
+CALIB = [("top_drawer", "link_0"), ("middle_drawer", "link_2"), ("bottom_drawer", "link_1")]
 
 
 def _round(seq, n=4):
@@ -101,9 +101,9 @@ def main():
             print(f"  {target} ({link}): could not read mesh AABB", flush=True)
             continue
         mn, mx = aabb
-        # front-face center: min world-X, centered in y/z (drawer opens toward -X)
+        # front-face center: min world-Y, centered in x/z (rotated cabinet: drawers open toward -Y)
         handle_world = torch.tensor(
-            [mn[0], 0.5 * (mn[1] + mx[1]), 0.5 * (mn[2] + mx[2])], dtype=torch.float32, device=link_pos.device
+            [0.5 * (mn[0] + mx[0]), mn[1], 0.5 * (mn[2] + mx[2])], dtype=torch.float32, device=link_pos.device
         )
         # convert to a constant offset in the link's local frame
         rel_world = (handle_world - link_pos).unsqueeze(0)

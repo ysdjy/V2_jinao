@@ -83,16 +83,20 @@ class OpenDrawerIKSkill:
     def _handle_pos(self) -> torch.Tensor:
         return self.obs_adapter.selected_handle_pos_w()[self.adapter.env_id]
 
-    def _cabinet_root(self) -> torch.Tensor:
-        return self.env.unwrapped.scene["cabinet"].data.root_pos_w[self.adapter.env_id]
+    def _cabinet_quat(self) -> torch.Tensor:
+        return self.env.unwrapped.scene["cabinet"].data.root_quat_w[self.adapter.env_id]
 
     def _drawer_pos(self) -> float:
         return self.obs_adapter.selected_drawer_joint_pos()
 
     def _grasp_pose(self, lead: float) -> PoseState:
-        """Live grasp/pull target: handle + lead*open_dir, with a derived front-grasp orientation."""
+        """Live grasp/pull target: handle + lead*open_dir, with a derived front-grasp orientation.
+
+        open_dir comes from the cabinet orientation (same for every drawer), so the grasp orientation
+        is identical for top/middle/bottom.
+        """
         handle = self._handle_pos()
-        open_dir = open_direction_world(handle, self._cabinet_root())
+        open_dir = open_direction_world(self._cabinet_quat())
         quat = grasp_quat_from_open_dir(open_dir, handle.device)
         return PoseState(handle + open_dir * lead, quat)
 

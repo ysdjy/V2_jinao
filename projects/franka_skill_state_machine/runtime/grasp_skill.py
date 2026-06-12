@@ -46,7 +46,7 @@ class GraspSkillConfig:
     probe_relative_motion_tolerance: float = 0.015
     full_lift_height_tolerance: float = 0.025
     full_lift_relative_motion_tolerance: float = 0.018
-    workspace_lower: tuple[float, float, float] = (0.25, -0.65, 0.010)
+    workspace_lower: tuple[float, float, float] = (0.13, -0.65, 0.010)
     workspace_upper: tuple[float, float, float] = (0.85, 0.65, 0.80)
 
 

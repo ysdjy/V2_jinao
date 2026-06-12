@@ -478,6 +478,12 @@ def main():
         if "blade_lock" in env_cfg.scene.knife.actuators:
             env_cfg.scene.knife.actuators["blade_lock"].stiffness = 100.0
             env_cfg.scene.knife.actuators["blade_lock"].damping = 10.0
+    # interactive UI: never auto-reset (disable episode time-out + cube terminations that reset the scene)
+    env_cfg.episode_length_s = 1.0e9
+    if getattr(env_cfg, "terminations", None) is not None:
+        for _t in ("cube_1_dropping", "cube_2_dropping", "cube_3_dropping", "success", "cubes_stacked"):
+            if hasattr(env_cfg.terminations, _t):
+                setattr(env_cfg.terminations, _t, None)
     env_cfg.viewer.eye = (2.0, -2.0, 1.4)
     env_cfg.viewer.lookat = (0.45, 0.0, 0.15)
 

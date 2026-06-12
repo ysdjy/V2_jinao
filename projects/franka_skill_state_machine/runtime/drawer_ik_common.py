@@ -13,20 +13,22 @@ import isaaclab.utils.math as math_utils
 
 _UP = (0.0, 0.0, 1.0)
 
+# Cabinet-local axis the drawers slide out along (this asset opens along local -X). Transformed by
+# the cabinet's world orientation it gives the world opening direction — the SAME for every drawer,
+# so the grasp orientation is consistent across top/middle/bottom regardless of per-handle geometry.
+LOCAL_OPEN_AXIS = (-1.0, 0.0, 0.0)
 
-def open_direction_world(handle_pos: torch.Tensor, cabinet_root_pos: torch.Tensor) -> torch.Tensor:
-    """Unit world vector pointing the way the drawer opens.
 
-    The handle sits on the drawer front face, so the horizontal vector from the cabinet body toward
-    the handle is the outward (opening) direction. Pulling the handle along this opens the drawer;
-    pushing along its negative closes it. Works regardless of cabinet yaw.
-    """
-    v = (handle_pos - cabinet_root_pos).clone()
-    v[2] = 0.0  # horizontal only
-    n = torch.linalg.norm(v)
+def open_direction_world(cabinet_quat: torch.Tensor) -> torch.Tensor:
+    """Unit world vector the drawers open along, derived from the cabinet orientation (consistent
+    for all drawers)."""
+    axis = torch.tensor(LOCAL_OPEN_AXIS, device=cabinet_quat.device)
+    d = math_utils.quat_apply(cabinet_quat.unsqueeze(0), axis.unsqueeze(0))[0].clone()
+    d[2] = 0.0  # horizontal only
+    n = torch.linalg.norm(d)
     if float(n) < 1e-6:
-        return torch.tensor([0.0, -1.0, 0.0], device=handle_pos.device)
-    return v / n
+        return torch.tensor([0.0, -1.0, 0.0], device=cabinet_quat.device)
+    return d / n
 
 
 def grasp_quat_from_open_dir(open_dir: torch.Tensor, device) -> torch.Tensor:
